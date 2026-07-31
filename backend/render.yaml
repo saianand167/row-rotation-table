@@ -1,0 +1,21 @@
+# render.yaml — Render deployment config for RRT Backend
+# Drop this in the backend/ folder and Render auto-detects it.
+
+services:
+  - type: web
+    name: cse5-rrt-api
+    runtime: node
+    rootDir: .          # This file lives inside backend/
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Set these manually in Render dashboard (never commit real values):
+      - key: MONGO_URI
+        sync: false       # Render will prompt you to enter the value
+      - key: FRONTEND_URL
+        sync: false
+      - key: ADMIN_PIN
+        sync: false

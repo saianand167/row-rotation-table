@@ -1,0 +1,13 @@
+node_modules
+
+# Environment variables — never commit real secrets
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
