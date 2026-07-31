@@ -2,6 +2,8 @@
 
 A real-time, automated classroom seating rotation system with a premium dashboard UI.
 
+> 📖 **For a complete student and admin user guide, check out [USER_GUIDE.md](file:///c:/Users/saian/OneDrive/Desktop/ds/row-rotation-table/USER_GUIDE.md).**
+
 ## Features
 
 - **24-Day Rotation Cycle** — Predefined seating arrangements that auto-advance daily
