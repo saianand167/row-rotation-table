@@ -58,11 +58,28 @@ export function AppProvider({ children }) {
         if (!publicKey) return;
 
         let subscription = await registration.pushManager.getSubscription();
+
+        // If subscription exists, verify whether its key matches the server's permanent VAPID key
+        if (subscription && subscription.options && subscription.options.applicationServerKey) {
+          const currentKeyArray = new Uint8Array(subscription.options.applicationServerKey);
+          const newKeyArray = urlBase64ToUint8Array(publicKey);
+
+          const isSameKey = currentKeyArray.length === newKeyArray.length &&
+            currentKeyArray.every((val, index) => val === newKeyArray[index]);
+
+          if (!isSameKey) {
+            console.log('🔄 Stale VAPID key detected. Automatically unsubscribing old push subscription...');
+            await subscription.unsubscribe();
+            subscription = null;
+          }
+        }
+
         if (!subscription) {
           subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(publicKey),
           });
+          console.log('✨ Fresh Web Push Subscription registered!');
         }
 
         await fetch(`${API_BASE}/notifications/subscribe`, {
