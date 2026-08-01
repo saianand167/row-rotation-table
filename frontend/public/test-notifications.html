@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head><title>Notification Test</title></head>
+<body style="font-family:Arial; padding:40px; background:#1a1a2e; color:white;">
+  <h1>🔔 Push Notification Test</h1>
+  <p id="status">Loading...</p>
+  <br>
+  <button onclick="testDirect()" style="padding:15px 30px; font-size:16px; background:#00b894; color:white; border:none; border-radius:10px; cursor:pointer; margin:5px;">
+    📲 Test Direct Notification
+  </button>
+  <button onclick="testPush()" style="padding:15px 30px; font-size:16px; background:#e17055; color:white; border:none; border-radius:10px; cursor:pointer; margin:5px;">
+    🔔 Test Server Push
+  </button>
+  <button onclick="runDiag()" style="padding:15px 30px; font-size:16px; background:#6c5ce7; color:white; border:none; border-radius:10px; cursor:pointer; margin:5px;">
+    🔍 Diagnostics
+  </button>
+  <pre id="log" style="background:#0d1117; padding:20px; border-radius:10px; margin-top:20px; white-space:pre-wrap; font-size:14px;"></pre>
+
+  <script>
+    const API = 'https://row-rotation-table.onrender.com/api';
+    const log = (msg) => { document.getElementById('log').textContent += msg + '\n'; console.log(msg); };
+
+    async function init() {
+      log('Notification support: ' + ('Notification' in window));
+      log('Notification.permission: ' + Notification.permission);
+      log('ServiceWorker support: ' + ('serviceWorker' in navigator));
+      log('PushManager support: ' + ('PushManager' in window));
+
+      if (Notification.permission === 'default') {
+        log('\nRequesting notification permission...');
+        const result = await Notification.requestPermission();
+        log('Permission result: ' + result);
+      }
+
+      document.getElementById('status').textContent = 
+        'Permission: ' + Notification.permission + 
+        ' | SW: ' + ('serviceWorker' in navigator);
+    }
+
+    async function testDirect() {
+      log('\n--- Direct Notification Test ---');
+      if (Notification.permission !== 'granted') {
+        const result = await Notification.requestPermission();
+        log('Permission: ' + result);
+        if (result !== 'granted') { log('❌ Permission denied!'); return; }
+      }
+      try {
+        const n = new Notification('CSE5 RRT Direct Test ✅', {
+          body: 'If you see this, Chrome CAN show notifications!',
+          icon: 'https://row-rotation-table.vercel.app/favicon.svg',
+        });
+        n.onclick = () => log('Notification was clicked!');
+        n.onerror = (e) => log('❌ Notification error: ' + e);
+        n.onshow = () => log('✅ Notification shown!');
+        log('✅ Notification object created successfully');
+      } catch (e) {
+        log('❌ Error: ' + e.message);
+      }
+    }
+
+    async function testPush() {
+      log('\n--- Server Push Test ---');
+      try {
+        const res = await fetch(API + '/notifications/test-push', { method: 'POST' });
+        const data = await res.json();
+        log('Response: ' + JSON.stringify(data));
+      } catch (e) {
+        log('❌ Error: ' + e.message);
+      }
+    }
+
+    async function runDiag() {
+      log('\n--- Full Diagnostics ---');
+      log('User Agent: ' + navigator.userAgent);
+      log('Notification.permission: ' + Notification.permission);
+
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) {
+          log('SW active: ' + (reg.active ? 'YES' : 'NO'));
+          log('SW scope: ' + reg.scope);
+          const sub = await reg.pushManager.getSubscription();
+          log('Push subscription: ' + (sub ? 'EXISTS' : 'NONE'));
+          if (sub) log('Endpoint: ' + sub.endpoint.substring(0, 80) + '...');
+        } else {
+          log('SW: NOT registered');
+        }
+      }
+
+      try {
+        const res = await fetch(API + '/notifications/count');
+        const data = await res.json();
+        log('Server subscribers: ' + data.count);
+      } catch (e) {
+        log('Server check failed: ' + e.message);
+      }
+
+      try {
+        const res = await fetch(API + '/notifications/vapid-public-key');
+        const data = await res.json();
+        log('VAPID key: ' + (data.publicKey ? data.publicKey.substring(0, 20) + '...' : 'MISSING'));
+      } catch (e) {
+        log('VAPID check failed: ' + e.message);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
