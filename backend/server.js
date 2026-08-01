@@ -1,13 +1,20 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const http = require('http');
+const socket = require('./socket');
 
 const rotationRoutes = require('./routes/rotation');
 const adminRoutes = require('./routes/admin');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/rrt';
+
+// Initialize Socket.io
+socket.init(server);
 
 // CORS — restrict to frontend domain in production
 const allowedOrigins = process.env.FRONTEND_URL
@@ -30,6 +37,7 @@ app.use(express.json());
 // Routes
 app.use('/api/rotation', rotationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -42,8 +50,8 @@ async function start() {
     await mongoose.connect(MONGO_URI);
     console.log('✅ Connected to MongoDB');
 
-    app.listen(PORT, () => {
-      console.log(`🚀 RRT Backend running on http://localhost:${PORT}`);
+    server.listen(PORT, () => {
+      console.log(`🚀 RRT Backend running with WebSockets on http://localhost:${PORT}`);
     });
   } catch (err) {
     console.error('❌ Failed to connect to MongoDB:', err.message);

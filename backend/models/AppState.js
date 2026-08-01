@@ -64,6 +64,36 @@ const appStateSchema = new mongoose.Schema({
     type: String,
     default: () => process.env.ADMIN_PIN || 'CSE5@123',
   },
+
+  // Config for whether the rows display feature is visible in the navbar
+  isRowsViewEnabled: {
+    type: Boolean,
+    default: false,
+  },
+
+  // Track the day on which a random layout was generated
+  randomLayoutDay: {
+    type: Number,
+    default: null,
+  },
+
+  // Track when the random layout was generated
+  randomLayoutGeneratedAt: {
+    type: Date,
+    default: null,
+  },
+
+  // Date (YYYY-MM-DD) for which a holiday random layout is generated
+  holidayRandomDate: {
+    type: String,
+    default: null,
+  },
+
+  // The actual 6-row seating arrangement for the holiday random layout
+  holidayRandomSeating: {
+    type: [String],
+    default: [],
+  },
 }, {
   timestamps: true,
 });

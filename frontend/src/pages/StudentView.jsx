@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useRotation } from '../hooks/useRotation';
+import { useApp } from '../context/AppContext';
 import { fetchNavigate } from '../utils/api';
 import SeatingCard from '../components/SeatingCard';
 import CountdownTimer from '../components/CountdownTimer';
@@ -13,7 +13,7 @@ const NAV_BUTTONS = [
 ];
 
 export default function StudentView() {
-  const { data, loading, error } = useRotation();
+  const { rotationData: data, loading, error } = useApp();
   const [activeOffset, setActiveOffset] = useState(0);
   const [navData, setNavData] = useState(null);
   const [navLoading, setNavLoading] = useState(false);
@@ -181,7 +181,10 @@ export default function StudentView() {
             </p>
             <div className="inline-flex items-center gap-2 px-5 py-2.5 mt-3 rounded-xl bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/20 dark:border-amber-500/10">
               <span className="text-amber-600 dark:text-amber-400 font-medium text-sm">
-                {displayData?.reason === 'Sunday' ? '☀️ Sunday — No class' : '📋 Leave Day — No class'}
+                {displayData?.reason === 'Friday' ? '☀️ Friday — Holiday' :
+                 displayData?.reason === 'Saturday' ? '☀️ Saturday — Holiday' :
+                 displayData?.reason === 'Sunday' ? '☀️ Sunday — Holiday' :
+                 '📋 Leave Day — No class'}
               </span>
             </div>
           </>
@@ -189,7 +192,7 @@ export default function StudentView() {
           <>
             <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold mb-3">
               <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
-                Day {displayDay}
+                {displayDay === 'Random' ? 'Random' : `Day ${displayDay}`}
               </span>
             </h1>
             <p className="text-gray-500 dark:text-gray-400 text-base sm:text-lg">
@@ -202,15 +205,26 @@ export default function StudentView() {
       {/* Seating Arrangement */}
       {!isHoliday && displaySeating && (
         <div>
-          <div className="flex items-center gap-2 mb-5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-              </svg>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {activeOffset === 0 ? "Today's Seating" : 'Seating Arrangement'}
+              </h2>
             </div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {activeOffset === 0 ? "Today's Seating" : 'Seating Arrangement'}
-            </h2>
+            {displayData?.isHolidayRandom ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border border-purple-200 text-purple-700 text-xs font-bold uppercase tracking-wider shadow-sm">
+                🎲 Today's Random is Displayed
+              </span>
+            ) : displayData?.isRandomLayout ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border border-purple-200 text-purple-700 text-xs font-bold uppercase tracking-wider animate-pulse shadow-sm">
+                🎲 Random Layout
+              </span>
+            ) : null}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -252,7 +266,7 @@ export default function StudentView() {
       <footer className="text-center pt-6 pb-8 animate-fade-in" style={{ animationDelay: '700ms' }}>
         <div className="border-t border-gray-200/30 dark:border-white/5 pt-6">
           <p className="text-sm text-gray-400 dark:text-gray-500 mb-1">
-            24-day rotation cycle • Sundays auto-skipped • Day {data.currentDay} of 24
+            24-day rotation cycle • Weekends (Fri-Sun) skipped • {data.currentDay === 'Random' ? 'Holiday Random Layout' : `Day ${data.currentDay} of 24`}
           </p>
           <p className="text-sm font-medium bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
             Made with ❤️ for CSE5

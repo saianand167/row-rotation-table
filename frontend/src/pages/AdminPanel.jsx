@@ -1,14 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import AdminLogin from '../components/AdminLogin';
+import { useApp } from '../context/AppContext';
 import {
   fetchAdminState, setDay, addLeaveDay, removeLeaveDay,
   setAnnouncement, setPause, fetchAllSeating, updateSeating, resetSeating,
+  generateRandomSeating, clearRandomSeating,
 } from '../utils/api';
 
 const VALID_CODES = ['G1', 'G2', 'G3', 'G4', 'B1', 'B2'];
 
 export default function AdminPanel() {
-  const [pin, setPin] = useState(null);
+  const { auth, refetch: refetchGlobalRotation } = useApp();
+  const { pin } = auth;
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
@@ -66,7 +69,7 @@ export default function AdminPanel() {
   }, [editDay, allSeating]);
 
   if (!pin) {
-    return <AdminLogin onLogin={setPin} />;
+    return <AdminLogin onLogin={auth.savePin} />;
   }
 
   if (!state) {
@@ -96,6 +99,7 @@ export default function AdminPanel() {
       const result = await setDay(pin, num);
       showToast(result.message);
       await loadState();
+      refetchGlobalRotation();
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to set day', 'error');
     } finally {
@@ -112,6 +116,7 @@ export default function AdminPanel() {
       showToast(result.message);
       setLeaveInput('');
       await loadState();
+      refetchGlobalRotation();
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to add leave', 'error');
     } finally {
@@ -125,6 +130,7 @@ export default function AdminPanel() {
       const result = await removeLeaveDay(pin, date);
       showToast(result.message);
       await loadState();
+      refetchGlobalRotation();
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to remove leave', 'error');
     } finally {
@@ -138,6 +144,7 @@ export default function AdminPanel() {
       const result = await setAnnouncement(pin, announcementInput, active);
       showToast(result.message);
       await loadState();
+      refetchGlobalRotation();
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to update announcement', 'error');
     } finally {
@@ -151,6 +158,7 @@ export default function AdminPanel() {
       const result = await setPause(pin, !state.isPaused);
       showToast(result.message);
       await loadState();
+      refetchGlobalRotation();
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to update pause state', 'error');
     } finally {
@@ -177,6 +185,7 @@ export default function AdminPanel() {
       const result = await updateSeating(pin, editDay, editArrangement);
       showToast(result.message);
       await loadSeating();
+      refetchGlobalRotation();
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to update seating', 'error');
     } finally {
@@ -190,8 +199,53 @@ export default function AdminPanel() {
       const result = await resetSeating(pin, editDay);
       showToast(result.message);
       await loadSeating();
+      refetchGlobalRotation();
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to reset seating', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGenerateRandom() {
+    setLoading(true);
+    try {
+      const result = await generateRandomSeating(pin);
+      showToast(result.message);
+      await loadState();
+      await loadSeating();
+      refetchGlobalRotation();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to generate random seating', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleClearRandom() {
+    setLoading(true);
+    try {
+      const result = await clearRandomSeating(pin);
+      showToast(result.message);
+      await loadState();
+      await loadSeating();
+      refetchGlobalRotation();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to clear random seating', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleTestPush() {
+    setLoading(true);
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const res = await fetch(`${API_BASE}/notifications/test-push`, { method: 'POST' });
+      const data = await res.json();
+      showToast(data.message || 'Test push notification sent!');
+    } catch (err) {
+      showToast('Failed to send test push', 'error');
     } finally {
       setLoading(false);
     }
@@ -221,12 +275,25 @@ export default function AdminPanel() {
               Manage rotation settings, seating, and announcements
             </p>
           </div>
-          <button
-            onClick={() => setPin(null)}
-            className="px-4 py-2 rounded-xl text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/5 transition-all"
-          >
-            Logout
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleTestPush}
+              disabled={loading}
+              className="px-4 py-2 rounded-xl text-sm font-medium bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all flex items-center gap-1.5"
+              title="Test Push Notification on mobile & laptop notification bar"
+            >
+              <span>🔔 Test Notification</span>
+            </button>
+            <button
+              onClick={() => {
+                auth.logout();
+                refetchGlobalRotation();
+              }}
+              className="px-4 py-2 rounded-xl text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/5 transition-all"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </div>
 
@@ -265,6 +332,57 @@ export default function AdminPanel() {
 
       {/* Control Cards Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* ─── Random Seating Generator ────────────────── */}
+        <div className="animate-fade-in-up rounded-2xl border border-gray-200/50 dark:border-white/5 bg-white/50 dark:bg-white/[0.02] backdrop-blur-sm overflow-hidden" style={{ animationDelay: '150ms' }}>
+          <div className="p-5 border-b border-gray-200/50 dark:border-white/5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+                <span className="text-lg">🎲</span>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">Random Seating Generator</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Generate seating layout for Day {state.currentDay}</p>
+              </div>
+            </div>
+          </div>
+          <div className="p-5 space-y-4">
+            <div className="flex flex-col gap-3">
+              <div className="flex gap-3">
+                <button
+                  onClick={handleGenerateRandom}
+                  disabled={loading}
+                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-semibold shadow-lg shadow-purple-500/20 disabled:opacity-50 transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
+                >
+                  <span>🎲 Generate</span>
+                </button>
+                <button
+                  onClick={handleClearRandom}
+                  disabled={loading}
+                  className="px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-50 transition-all"
+                  title="Remove Random Layout"
+                >
+                  Clear
+                </button>
+              </div>
+              
+              {(state.randomLayoutDay === state.currentDay && state.randomLayoutGeneratedAt) || state.holidayRandomDate ? (
+                <div className="p-3 bg-purple-50 border border-purple-100 rounded-xl text-xs text-purple-700 space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[10px]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                    {state.holidayRandomDate ? 'Holiday Random Active' : 'Random Layout Active'}
+                  </div>
+                  <p className="font-medium text-gray-600">
+                    {state.holidayRandomDate 
+                      ? `Active for ${state.holidayRandomDate}`
+                      : `Generated: ${new Date(state.randomLayoutGeneratedAt).toLocaleString()}`
+                    }
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
 
         {/* ─── Day Override ─────────────────────────── */}
         <div className="animate-fade-in-up rounded-2xl border border-gray-200/50 dark:border-white/5 bg-white/50 dark:bg-white/[0.02] backdrop-blur-sm overflow-hidden" style={{ animationDelay: '100ms' }}>

@@ -7,15 +7,25 @@ const api = axios.create({
   timeout: 10000,
 });
 
+function getLocalDateString() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // ─── Student API ─────────────────────────────────────────
 
 export async function fetchRotation() {
-  const { data } = await api.get('/rotation');
+  const localDate = getLocalDateString();
+  const { data } = await api.get(`/rotation?clientDate=${localDate}`);
   return data;
 }
 
 export async function fetchNavigate(offset) {
-  const { data } = await api.get(`/rotation/navigate?offset=${offset}`);
+  const localDate = getLocalDateString();
+  const { data } = await api.get(`/rotation/navigate?offset=${offset}&clientDate=${localDate}`);
   return data;
 }
 
@@ -34,7 +44,8 @@ export async function fetchAdminState(pin) {
 }
 
 export async function setDay(pin, day) {
-  const { data } = await api.post('/admin/set-day', { day }, {
+  const localDate = getLocalDateString();
+  const { data } = await api.post('/admin/set-day', { day, clientDate: localDate }, {
     headers: { 'x-admin-pin': pin },
   });
   return data;
@@ -94,6 +105,28 @@ export async function updateSeating(pin, day, arrangement) {
 
 export async function resetSeating(pin, day) {
   const { data } = await api.delete(`/admin/seating/${day}`, {
+    headers: { 'x-admin-pin': pin },
+  });
+  return data;
+}
+
+export async function toggleRowsView(pin, enabled) {
+  const { data } = await api.post('/admin/toggle-rows-view', { enabled }, {
+    headers: { 'x-admin-pin': pin },
+  });
+  return data;
+}
+
+export async function generateRandomSeating(pin) {
+  const localDate = getLocalDateString();
+  const { data } = await api.post('/admin/generate-random-seating', { clientDate: localDate }, {
+    headers: { 'x-admin-pin': pin },
+  });
+  return data;
+}
+
+export async function clearRandomSeating(pin) {
+  const { data } = await api.post('/admin/clear-random-seating', {}, {
     headers: { 'x-admin-pin': pin },
   });
   return data;

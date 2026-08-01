@@ -4,18 +4,30 @@ const AppState = require('../models/AppState');
 const rotationData = require('../data/rotationData');
 
 /**
- * Check if a date string (YYYY-MM-DD) is a Sunday
+ * Format a Date object as YYYY-MM-DD using LOCAL timezone (not UTC).
+ * This avoids the toISOString() bug where IST dates shift back a day.
  */
-function isSunday(dateStr) {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.getDay() === 0;
+function toDateStr(d) {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 /**
- * Check if a date should be skipped (Sunday or leave day)
+ * Check if a date string (YYYY-MM-DD) is a holiday (Friday, Saturday, Sunday)
+ */
+function isHoliday(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay();
+  return day === 5 || day === 6 || day === 0; // Friday, Saturday, Sunday
+}
+
+/**
+ * Check if a date should be skipped (holiday or leave day)
  */
 function isSkipDay(dateStr, leaveDays) {
-  return isSunday(dateStr) || leaveDays.includes(dateStr);
+  return isHoliday(dateStr) || leaveDays.includes(dateStr);
 }
 
 /**
@@ -37,13 +49,16 @@ function getSeatingForDay(day, customSeating) {
  * Compute the current rotation day based on elapsed time,
  * leave days, Sundays, pause state, and manual overrides.
  */
-async function computeCurrentDay(state) {
+async function computeCurrentDay(state, today) {
+  if (!today) {
+    today = toDateStr(new Date());
+  }
+
   // If paused, return the stored day as-is
   if (state.isPaused) {
     return state.currentDay;
   }
 
-  const today = new Date().toISOString().split('T')[0];
   const lastAdvance = state.lastAdvanceDate;
 
   // If we're still on the same day, no advancement needed
@@ -52,15 +67,15 @@ async function computeCurrentDay(state) {
   }
 
   // Calculate each date between lastAdvanceDate and today
-  const start = new Date(lastAdvance);
-  const end = new Date(today);
+  const start = new Date(lastAdvance + 'T00:00:00');
+  const end = new Date(today + 'T00:00:00');
   let daysToAdvance = 0;
 
   const current = new Date(start);
   current.setDate(current.getDate() + 1); // Start from the day after last advance
 
   while (current <= end) {
-    const dateStr = current.toISOString().split('T')[0];
+    const dateStr = toDateStr(current);
     // Only advance if this date is NOT a Sunday and NOT a leave day
     if (!isSkipDay(dateStr, state.leaveDays)) {
       daysToAdvance++;
@@ -89,22 +104,33 @@ async function computeCurrentDay(state) {
  * Given today's rotation day, compute the rotation day for a calendar offset.
  * offset: -1 = yesterday, 0 = today, 1 = tomorrow, 2 = day after tomorrow
  */
-function computeDayForOffset(offset, currentDay, leaveDays) {
-  const today = new Date();
+function computeDayForOffset(offset, currentDay, leaveDays, todayStr) {
+  if (!todayStr) {
+    todayStr = toDateStr(new Date());
+  }
+  const today = new Date(todayStr + 'T00:00:00');
   const targetDate = new Date(today);
   targetDate.setDate(today.getDate() + offset);
-  const targetDateStr = targetDate.toISOString().split('T')[0];
+  const targetDateStr = toDateStr(targetDate);
 
   // Check if the target date itself is a skip day
-  const targetIsSunday = isSunday(targetDateStr);
+  const targetIsHoliday = isHoliday(targetDateStr);
   const targetIsLeave = leaveDays.includes(targetDateStr);
-  const targetIsSkip = targetIsSunday || targetIsLeave;
+  const targetIsSkip = targetIsHoliday || targetIsLeave;
 
   if (targetIsSkip) {
+    let reason = 'Leave Day';
+    if (targetIsHoliday) {
+      const d = new Date(targetDateStr + 'T00:00:00');
+      const day = d.getDay();
+      if (day === 5) reason = 'Friday';
+      else if (day === 6) reason = 'Saturday';
+      else if (day === 0) reason = 'Sunday';
+    }
     return {
       date: targetDateStr,
       isHoliday: true,
-      reason: targetIsSunday ? 'Sunday' : 'Leave Day',
+      reason,
       rotationDay: null,
       seating: null,
     };
@@ -113,7 +139,7 @@ function computeDayForOffset(offset, currentDay, leaveDays) {
   // Count active days between today and the target date
   if (offset === 0) {
     return {
-      date: targetDateStr,
+      date: toDateStr(targetDate),
       isHoliday: false,
       reason: null,
       rotationDay: currentDay,
@@ -126,7 +152,7 @@ function computeDayForOffset(offset, currentDay, leaveDays) {
     const cursor = new Date(today);
     cursor.setDate(cursor.getDate() + 1);
     while (cursor <= targetDate) {
-      const ds = cursor.toISOString().split('T')[0];
+      const ds = toDateStr(cursor);
       if (!isSkipDay(ds, leaveDays)) {
         dayShift++;
       }
@@ -137,7 +163,7 @@ function computeDayForOffset(offset, currentDay, leaveDays) {
     const cursor = new Date(targetDate);
     cursor.setDate(cursor.getDate() + 1);
     while (cursor <= today) {
-      const ds = cursor.toISOString().split('T')[0];
+      const ds = toDateStr(cursor);
       if (!isSkipDay(ds, leaveDays)) {
         dayShift--;
       }
@@ -165,8 +191,38 @@ function computeDayForOffset(offset, currentDay, leaveDays) {
 router.get('/', async (req, res) => {
   try {
     const state = await AppState.getState();
-    const currentDay = await computeCurrentDay(state);
-    const seating = getSeatingForDay(currentDay, state.customSeating);
+    const clientDate = req.query.clientDate || toDateStr(new Date());
+    const currentDay = await computeCurrentDay(state, clientDate);
+
+    // Check if there is a holiday random layout for today
+    const hasHolidayRandom = state.holidayRandomDate === clientDate && state.holidayRandomSeating && state.holidayRandomSeating.length === 6;
+
+    let isTodayHoliday = isSkipDay(clientDate, state.leaveDays);
+    let holidayReason = null;
+    let finalSeating = null;
+    let finalDay = currentDay;
+    let finalIsRandomLayout = false;
+
+    if (hasHolidayRandom) {
+      // It's a holiday, but we have a random seating layout generated for today!
+      isTodayHoliday = false; // Override holiday state for display
+      finalSeating = state.holidayRandomSeating;
+      finalDay = 'Random'; // Special string to indicate it's not a normal rotation day
+      finalIsRandomLayout = true;
+    } else if (isTodayHoliday) {
+      if (isHoliday(clientDate)) {
+        const d = new Date(clientDate + 'T00:00:00');
+        const day = d.getDay();
+        if (day === 5) holidayReason = 'Friday';
+        else if (day === 6) holidayReason = 'Saturday';
+        else if (day === 0) holidayReason = 'Sunday';
+      } else {
+        holidayReason = 'Leave Day';
+      }
+    } else {
+      finalSeating = getSeatingForDay(currentDay, state.customSeating);
+      finalIsRandomLayout = state.randomLayoutDay === currentDay && state.randomLayoutGeneratedAt != null;
+    }
 
     // Calculate countdown to midnight (next rotation)
     const now = new Date();
@@ -175,9 +231,11 @@ router.get('/', async (req, res) => {
     const msUntilMidnight = midnight.getTime() - now.getTime();
 
     res.json({
-      currentDay,
-      date: new Date().toISOString().split('T')[0],
-      seating: seating.map((code, index) => ({
+      currentDay: finalDay,
+      date: clientDate,
+      isHoliday: isTodayHoliday,
+      reason: holidayReason,
+      seating: isTodayHoliday ? null : finalSeating.map((code, index) => ({
         row: index + 1,
         code,
         type: code.startsWith('G') ? 'girl' : 'boy',
@@ -189,6 +247,9 @@ router.get('/', async (req, res) => {
         seconds: Math.floor((msUntilMidnight % (1000 * 60)) / 1000),
       },
       isPaused: state.isPaused,
+      isRowsViewEnabled: state.isRowsViewEnabled || false,
+      isRandomLayout: finalIsRandomLayout,
+      isHolidayRandom: hasHolidayRandom,
       announcement: state.announcement.active ? {
         text: state.announcement.text,
         createdAt: state.announcement.createdAt,
@@ -213,34 +274,46 @@ router.get('/navigate', async (req, res) => {
     }
 
     const state = await AppState.getState();
-    const currentDay = await computeCurrentDay(state);
-    const result = computeDayForOffset(offset, currentDay, state.leaveDays);
+    const clientDate = req.query.clientDate || toDateStr(new Date());
+    const currentDay = await computeCurrentDay(state, clientDate);
+    const result = computeDayForOffset(offset, currentDay, state.leaveDays, clientDate);
 
-    if (result.isHoliday) {
-      res.json({
-        ...result,
-        isPaused: state.isPaused,
-        announcement: state.announcement.active ? {
-          text: state.announcement.text,
-          createdAt: state.announcement.createdAt,
-        } : null,
-      });
-    } else {
-      const seating = getSeatingForDay(result.rotationDay, state.customSeating);
-      res.json({
-        ...result,
-        seating: seating.map((code, index) => ({
-          row: index + 1,
-          code,
-          type: code.startsWith('G') ? 'girl' : 'boy',
-        })),
-        isPaused: state.isPaused,
-        announcement: state.announcement.active ? {
-          text: state.announcement.text,
-          createdAt: state.announcement.createdAt,
-        } : null,
-      });
+    // Check if there is a holiday random layout for the TARGET date
+    const hasHolidayRandom = state.holidayRandomDate === result.date && state.holidayRandomSeating && state.holidayRandomSeating.length === 6;
+
+    let isTargetHoliday = result.isHoliday;
+    let finalSeating = null;
+    let finalDay = result.rotationDay;
+    let finalIsRandomLayout = false;
+
+    if (hasHolidayRandom) {
+      isTargetHoliday = false; // Override holiday state for display
+      finalSeating = state.holidayRandomSeating;
+      finalDay = 'Random';
+      finalIsRandomLayout = true;
+    } else if (!isTargetHoliday) {
+      finalSeating = getSeatingForDay(result.rotationDay, state.customSeating);
+      finalIsRandomLayout = state.randomLayoutDay === result.rotationDay && state.randomLayoutGeneratedAt != null;
     }
+
+    res.json({
+      ...result,
+      isHoliday: isTargetHoliday,
+      rotationDay: finalDay,
+      seating: isTargetHoliday ? null : finalSeating.map((code, index) => ({
+        row: index + 1,
+        code,
+        type: code.startsWith('G') ? 'girl' : 'boy',
+      })),
+      isPaused: state.isPaused,
+      isRowsViewEnabled: state.isRowsViewEnabled || false,
+      isRandomLayout: finalIsRandomLayout,
+      isHolidayRandom: hasHolidayRandom,
+      announcement: state.announcement.active ? {
+        text: state.announcement.text,
+        createdAt: state.announcement.createdAt,
+      } : null,
+    });
   } catch (err) {
     console.error('Error navigating:', err);
     res.status(500).json({ error: 'Failed to navigate rotation' });

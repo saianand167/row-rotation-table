@@ -3,6 +3,8 @@ const router = express.Router();
 const AppState = require('../models/AppState');
 const adminAuth = require('../middleware/adminAuth');
 const rotationData = require('../data/rotationData');
+const { broadcastUpdate } = require('../socket');
+const { sendPushToAll } = require('../pushNotification');
 
 /**
  * POST /api/admin/verify
@@ -30,7 +32,7 @@ router.post('/verify', async (req, res) => {
  */
 router.post('/set-day', adminAuth, async (req, res) => {
   try {
-    const { day } = req.body;
+    const { day, clientDate } = req.body;
     const dayNum = parseInt(day, 10);
 
     if (isNaN(dayNum) || dayNum < 1 || dayNum > 24) {
@@ -40,8 +42,39 @@ router.post('/set-day', adminAuth, async (req, res) => {
     const state = await AppState.getState();
     state.currentDay = dayNum;
     state.isManualOverride = true;
-    state.lastAdvanceDate = new Date().toISOString().split('T')[0];
+
+    let isSkipDayToday = false;
+    if (clientDate) {
+      const d = new Date(clientDate + 'T00:00:00');
+      const dw = d.getDay();
+      isSkipDayToday = (dw === 5 || dw === 6 || dw === 0) || state.leaveDays.includes(clientDate);
+    }
+
+    if (isSkipDayToday && clientDate) {
+      let nextWorkingDate = new Date(clientDate + 'T00:00:00');
+      nextWorkingDate.setDate(nextWorkingDate.getDate() + 1);
+      
+      while (true) {
+        // Need to pad correctly, so using local date components
+        const y = nextWorkingDate.getFullYear();
+        const m = String(nextWorkingDate.getMonth() + 1).padStart(2, '0');
+        const dNum = String(nextWorkingDate.getDate()).padStart(2, '0');
+        const dStr = `${y}-${m}-${dNum}`;
+        const dw = nextWorkingDate.getDay();
+        const isSkip = (dw === 5 || dw === 6 || dw === 0) || state.leaveDays.includes(dStr);
+        if (!isSkip) {
+          state.lastAdvanceDate = dStr;
+          break;
+        }
+        nextWorkingDate.setDate(nextWorkingDate.getDate() + 1);
+      }
+    } else {
+      state.lastAdvanceDate = clientDate || new Date().toISOString().split('T')[0];
+    }
+
     await state.save();
+    broadcastUpdate('set_day', { currentDay: dayNum });
+    sendPushToAll({ title: 'Day Updated 📅', body: `Rotation set to Day ${dayNum}` });
 
     res.json({ success: true, currentDay: dayNum, message: `Day set to ${dayNum}` });
   } catch (err) {
@@ -85,6 +118,8 @@ router.post('/leave-days', adminAuth, async (req, res) => {
     state.leaveDays.push(date);
     state.leaveDays.sort();
     await state.save();
+    broadcastUpdate('add_leave_day', { date });
+    sendPushToAll({ title: 'Holiday Added 🏖️', body: `Leave day marked for ${date}` });
 
     res.json({ success: true, leaveDays: state.leaveDays, message: `Leave added for ${date}` });
   } catch (err) {
@@ -110,6 +145,8 @@ router.delete('/leave-days', adminAuth, async (req, res) => {
 
     state.leaveDays.splice(index, 1);
     await state.save();
+    broadcastUpdate('remove_leave_day', { date });
+    sendPushToAll({ title: 'Holiday Removed 📅', body: `Leave day for ${date} removed.` });
 
     res.json({ success: true, leaveDays: state.leaveDays, message: `Leave removed for ${date}` });
   } catch (err) {
@@ -133,6 +170,11 @@ router.post('/announcement', adminAuth, async (req, res) => {
       createdAt: new Date(),
     };
     await state.save();
+    broadcastUpdate('announcement', { announcement: state.announcement });
+    sendPushToAll({
+      title: 'New Announcement 📢',
+      body: state.announcement.text ? `"${state.announcement.text}"` : 'Announcement updated by Admin',
+    });
 
     res.json({
       success: true,
@@ -163,6 +205,11 @@ router.post('/pause', adminAuth, async (req, res) => {
     }
 
     await state.save();
+    broadcastUpdate('pause', { isPaused: state.isPaused });
+    sendPushToAll({
+      title: state.isPaused ? 'Rotation Paused ⏸️' : 'Rotation Resumed ▶️',
+      body: state.isPaused ? 'Auto-rotation is currently paused.' : 'Auto-rotation is active.',
+    });
 
     res.json({
       success: true,
@@ -210,7 +257,13 @@ router.put('/seating/:day', adminAuth, async (req, res) => {
       state.customSeating = new Map();
     }
     state.customSeating.set(String(dayNum), arrangement);
+    if (state.randomLayoutDay === dayNum) {
+      state.randomLayoutDay = null;
+      state.randomLayoutGeneratedAt = null;
+    }
     await state.save();
+    broadcastUpdate('update_seating', { day: dayNum });
+    sendPushToAll({ title: 'Seating Arrangement Updated 🪑', body: `Custom seating updated for Day ${dayNum}` });
 
     res.json({
       success: true,
@@ -238,8 +291,14 @@ router.delete('/seating/:day', adminAuth, async (req, res) => {
     const state = await AppState.getState();
     if (state.customSeating) {
       state.customSeating.delete(String(dayNum));
-      await state.save();
     }
+    if (state.randomLayoutDay === dayNum) {
+      state.randomLayoutDay = null;
+      state.randomLayoutGeneratedAt = null;
+    }
+    await state.save();
+    broadcastUpdate('reset_seating', { day: dayNum });
+    sendPushToAll({ title: 'Seating Reset 🪑', body: `Day ${dayNum} reset to default seating.` });
 
     res.json({
       success: true,
@@ -293,10 +352,168 @@ router.get('/state', adminAuth, async (req, res) => {
       announcement: state.announcement,
       lastAdvanceDate: state.lastAdvanceDate,
       customSeatingCount: state.customSeating ? state.customSeating.size : 0,
+      isRowsViewEnabled: state.isRowsViewEnabled || false,
+      randomLayoutDay: state.randomLayoutDay,
+      randomLayoutGeneratedAt: state.randomLayoutGeneratedAt,
+      holidayRandomDate: state.holidayRandomDate,
     });
   } catch (err) {
     console.error('Get state error:', err);
     res.status(500).json({ error: 'Failed to fetch state' });
+  }
+});
+
+/**
+ * POST /api/admin/toggle-rows-view
+ * Toggle visibility of the Rows View in the navbar
+ */
+router.post('/toggle-rows-view', adminAuth, async (req, res) => {
+  try {
+    const { enabled } = req.body;
+    const state = await AppState.getState();
+    state.isRowsViewEnabled = !!enabled;
+    await state.save();
+    broadcastUpdate('toggle_rows_view', { isRowsViewEnabled: state.isRowsViewEnabled });
+
+    res.json({
+      success: true,
+      isRowsViewEnabled: state.isRowsViewEnabled,
+      message: enabled ? 'Rows view enabled' : 'Rows view disabled',
+    });
+  } catch (err) {
+    console.error('Toggle rows view error:', err);
+    res.status(500).json({ error: 'Failed to toggle rows view' });
+  }
+});
+
+/**
+ * POST /api/admin/generate-random-seating
+ * Generate a random seating layout for the current day or holiday
+ * following the specific boy/girl constraints.
+ */
+router.post('/generate-random-seating', adminAuth, async (req, res) => {
+  try {
+    const { clientDate } = req.body;
+    const state = await AppState.getState();
+    const currentDay = state.currentDay;
+
+    // Determine if it's a holiday based on clientDate
+    let isHolidayToday = false;
+    if (clientDate) {
+      const d = new Date(clientDate + 'T00:00:00');
+      const day = d.getDay();
+      isHolidayToday = (day === 5 || day === 6 || day === 0) || state.leaveDays.includes(clientDate);
+    }
+
+    // 1. Pick a random consecutive pair of rows for boys
+    // Options: rows 3 & 4 (index 2 & 3), rows 4 & 5 (index 3 & 4), rows 5 & 6 (index 4 & 5)
+    const boyPairs = [
+      [2, 3],
+      [3, 4],
+      [4, 5]
+    ];
+    const randomPair = boyPairs[Math.floor(Math.random() * boyPairs.length)];
+
+    // 2. Shuffle boys
+    const boys = ['B1', 'B2'];
+    if (Math.random() < 0.5) {
+      boys.reverse();
+    }
+
+    // 3. Shuffle girls
+    const girls = ['G1', 'G2', 'G3', 'G4'];
+    for (let i = girls.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [girls[i], girls[j]] = [girls[j], girls[i]];
+    }
+
+    // 4. Construct final seating array of 6 rows
+    const arrangement = new Array(6);
+    // Place boys
+    arrangement[randomPair[0]] = boys[0];
+    arrangement[randomPair[1]] = boys[1];
+
+    // Place girls in remaining spots
+    let girlIdx = 0;
+    for (let i = 0; i < 6; i++) {
+      if (arrangement[i] === undefined) {
+        arrangement[i] = girls[girlIdx++];
+      }
+    }
+
+    // 5. Save arrangement based on whether it's a holiday
+    if (isHolidayToday && clientDate) {
+      state.holidayRandomDate = clientDate;
+      state.holidayRandomSeating = arrangement;
+      await state.save();
+      broadcastUpdate('generate_random', { day: 'Random' });
+      sendPushToAll({ title: 'Random Seating Generated 🎲', body: "Today's random layout is displayed!" });
+
+      res.json({
+        success: true,
+        day: 'Random',
+        arrangement,
+        message: `Holiday random seating generated for ${clientDate}`,
+      });
+    } else {
+      if (!state.customSeating) {
+        state.customSeating = new Map();
+      }
+      state.customSeating.set(String(currentDay), arrangement);
+
+      // 6. Label as random layout
+      state.randomLayoutDay = currentDay;
+      state.randomLayoutGeneratedAt = new Date();
+      await state.save();
+      broadcastUpdate('generate_random', { day: currentDay });
+      sendPushToAll({ title: 'Random Seating Generated 🎲', body: `Random layout generated for Day ${currentDay}` });
+
+      res.json({
+        success: true,
+        day: currentDay,
+        arrangement,
+        randomLayoutGeneratedAt: state.randomLayoutGeneratedAt,
+        message: `Random seating arrangement generated for Day ${currentDay}`,
+      });
+    }
+  } catch (err) {
+    console.error('Generate random seating error:', err);
+    res.status(500).json({ error: 'Failed to generate random seating' });
+  }
+});
+
+/**
+ * POST /api/admin/clear-random-seating
+ * Clears any generated random seating layout (holiday or regular)
+ */
+router.post('/clear-random-seating', adminAuth, async (req, res) => {
+  try {
+    const state = await AppState.getState();
+    
+    // Clear regular random layout
+    if (state.randomLayoutDay != null) {
+      if (state.customSeating && state.customSeating.has(String(state.randomLayoutDay))) {
+        state.customSeating.delete(String(state.randomLayoutDay));
+      }
+    }
+    state.randomLayoutDay = null;
+    state.randomLayoutGeneratedAt = null;
+
+    // Clear holiday random layout
+    state.holidayRandomDate = null;
+    state.holidayRandomSeating = [];
+
+    await state.save();
+    broadcastUpdate('clear_random', {});
+    sendPushToAll({ title: 'Random Layout Cleared 🔄', body: 'Restored standard rotation layout.' });
+
+    res.json({
+      success: true,
+      message: 'Random layout cleared. Normal display restored.',
+    });
+  } catch (err) {
+    console.error('Clear random seating error:', err);
+    res.status(500).json({ error: 'Failed to clear random seating' });
   }
 });
 
