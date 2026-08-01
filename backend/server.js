@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const http = require('http');
 const socket = require('./socket');
+const pushNotification = require('./pushNotification');
 
 const rotationRoutes = require('./routes/rotation');
 const adminRoutes = require('./routes/admin');
@@ -49,6 +50,7 @@ async function start() {
   try {
     await mongoose.connect(MONGO_URI);
     console.log('✅ Connected to MongoDB');
+    await pushNotification.initVapidKeys();
 
     server.listen(PORT, () => {
       console.log(`🚀 RRT Backend running with WebSockets on http://localhost:${PORT}`);

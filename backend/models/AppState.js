@@ -94,6 +94,16 @@ const appStateSchema = new mongoose.Schema({
     type: [String],
     default: [],
   },
+
+  // Persistent VAPID Keys for Web Push Notifications
+  vapidPublicKey: {
+    type: String,
+    default: null,
+  },
+  vapidPrivateKey: {
+    type: String,
+    default: null,
+  },
 }, {
   timestamps: true,
 });
