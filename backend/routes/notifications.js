@@ -69,4 +69,17 @@ router.post('/test-push', async (req, res) => {
   }
 });
 
+/**
+ * DELETE /api/notifications/clear-subscriptions
+ * Wipes all push subscriptions (useful after VAPID key rotation)
+ */
+router.delete('/clear-subscriptions', async (req, res) => {
+  try {
+    const result = await Subscription.deleteMany({});
+    res.json({ success: true, deleted: result.deletedCount });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to clear subscriptions' });
+  }
+});
+
 module.exports = router;

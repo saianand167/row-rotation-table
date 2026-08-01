@@ -13,8 +13,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'CSE5 RRT Update ⚡';
   const options = {
     body: data.body || 'New seating or rotation update from Admin.',
-    icon: '/favicon.ico',
-    badge: '/favicon.ico',
+    icon: '/favicon.svg',
+    badge: '/favicon.svg',
     vibrate: [100, 50, 100],
     data: {
       url: data.url || '/',
