@@ -251,6 +251,82 @@ export default function AdminPanel() {
     }
   }
 
+  async function handleDirectNotification() {
+    // This tests if Chrome/Windows can show notifications at all (bypasses push pipeline)
+    const permission = Notification.permission;
+    if (permission === 'default') {
+      const result = await Notification.requestPermission();
+      if (result !== 'granted') {
+        showToast('Notification permission denied by browser', 'error');
+        return;
+      }
+    } else if (permission === 'denied') {
+      showToast('Notifications are BLOCKED in your browser. Click the lock icon in the URL bar → set Notifications to Allow', 'error');
+      return;
+    }
+
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        await reg.showNotification('CSE5 RRT Direct Test ✅', {
+          body: 'This notification was triggered directly from your browser! If you see this, notifications WORK.',
+          icon: '/favicon.svg',
+          badge: '/favicon.svg',
+          vibrate: [100, 50, 100],
+        });
+        showToast('Direct notification sent via Service Worker!');
+      } else {
+        // Fallback: use Notification API directly
+        new Notification('CSE5 RRT Direct Test ✅', {
+          body: 'This notification was triggered directly! If you see this, notifications WORK.',
+          icon: '/favicon.svg',
+        });
+        showToast('Direct notification sent (no service worker)!');
+      }
+    } catch (err) {
+      showToast('Direct notification failed: ' + err.message, 'error');
+    }
+  }
+
+  async function handleDiagnostics() {
+    const lines = [];
+    lines.push('🔍 Push Notification Diagnostics:');
+    lines.push('---');
+    lines.push(`Browser: ${navigator.userAgent.substring(0, 60)}...`);
+    lines.push(`ServiceWorker support: ${'serviceWorker' in navigator}`);
+    lines.push(`PushManager support: ${'PushManager' in window}`);
+    lines.push(`Notification support: ${'Notification' in window}`);
+    lines.push(`Notification.permission: ${Notification.permission}`);
+
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        lines.push(`SW state: ${reg.active ? 'active' : 'not active'}`);
+        lines.push(`SW scope: ${reg.scope}`);
+        const sub = await reg.pushManager.getSubscription();
+        lines.push(`Push subscription: ${sub ? 'EXISTS' : 'NONE'}`);
+        if (sub) {
+          lines.push(`Endpoint: ${sub.endpoint.substring(0, 80)}...`);
+        }
+      } else {
+        lines.push('SW: NO SERVICE WORKER REGISTERED');
+      }
+    }
+
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    try {
+      const res = await fetch(`${API_BASE}/notifications/count`);
+      const data = await res.json();
+      lines.push(`Server subscribers: ${data.count}`);
+    } catch (e) {
+      lines.push(`Server check failed: ${e.message}`);
+    }
+
+    const report = lines.join('\n');
+    console.log(report);
+    alert(report);
+  }
+
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* Toast notification */}
@@ -683,6 +759,37 @@ export default function AdminPanel() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* 🔔 Notification Testing & Diagnostics */}
+      <div className="card p-5 sm:p-6 space-y-4">
+        <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
+          🔔 Push Notification Testing
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Test if push notifications are working on your device.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={handleTestPush}
+            disabled={loading}
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-medium text-sm shadow-lg shadow-amber-500/20 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            🔔 Server Push Test
+          </button>
+          <button
+            onClick={handleDirectNotification}
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium text-sm shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            📲 Direct Notification Test
+          </button>
+          <button
+            onClick={handleDiagnostics}
+            className="px-5 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 font-medium text-sm hover:bg-gray-100 dark:hover:bg-white/5 transition-all"
+          >
+            🔍 Run Diagnostics
+          </button>
+        </div>
       </div>
 
       {/* Footer */}
