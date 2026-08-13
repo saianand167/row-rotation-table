@@ -28,15 +28,16 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/rrt';
 // Initialize Socket.io
 socket.init(server);
 
-// CORS — restrict to frontend domain in production
-const allowedOrigins = process.env.FRONTEND_URL
-  ? process.env.FRONTEND_URL.split(',').map(o => o.trim())
-  : ['http://localhost:3000', 'http://localhost:5173'];
+// CORS — allow frontend domains + Android WebView (capacitor://localhost sends null origin)
+const frontendUrl = process.env.FRONTEND_URL || '';
+const allowedOrigins = frontendUrl && frontendUrl !== '*'
+  ? frontendUrl.split(',').map(o => o.trim())
+  : [];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (curl, Postman, same-origin) or matching origins
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow: no origin (curl/Postman/mobile WebView), wildcard config, or matching origins
+    if (!origin || frontendUrl === '*' || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error(`CORS blocked for origin: ${origin}`));
