@@ -14,6 +14,7 @@ export default function AdminPanel() {
   const { pin } = auth;
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null); // 'set-day', 'pause', 'leave', 'announcement', etc.
   const [toast, setToast] = useState(null);
 
   // Form state
@@ -41,6 +42,7 @@ export default function AdminPanel() {
       setAnnouncementInput(data.announcement?.text || '');
     } catch (err) {
       console.error('Failed to load state:', err);
+      showToast('Failed to load admin state', 'error');
     }
   }, [pin]);
 
@@ -61,7 +63,6 @@ export default function AdminPanel() {
     }
   }, [pin, loadState, loadSeating]);
 
-  // When editDay changes, update the editor arrangement
   useEffect(() => {
     if (allSeating && allSeating[editDay]) {
       setEditArrangement([...allSeating[editDay].arrangement]);
@@ -74,19 +75,19 @@ export default function AdminPanel() {
 
   if (!state) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center animate-pulse">
-          <svg className="w-5 h-5 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-3">
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/25 animate-pulse">
+          <svg className="w-6 h-6 text-white animate-spin" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
         </div>
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Loading Administrator Dashboard...</p>
       </div>
     );
   }
 
-  // ─── Handlers ────────────────────────────────────────
-
+  // Handlers
   async function handleSetDay(e) {
     e.preventDefault();
     const num = parseInt(dayInput, 10);
@@ -95,15 +96,17 @@ export default function AdminPanel() {
       return;
     }
     setLoading(true);
+    setActionLoading('set-day');
     try {
       const result = await setDay(pin, num);
-      showToast(result.message);
+      showToast(result.message || `Rotation set to Day ${num}`);
       await loadState();
       refetchGlobalRotation();
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to set day', 'error');
     } finally {
       setLoading(false);
+      setActionLoading(null);
     }
   }
 
@@ -111,63 +114,70 @@ export default function AdminPanel() {
     e.preventDefault();
     if (!leaveInput) return;
     setLoading(true);
+    setActionLoading('leave-add');
     try {
       const result = await addLeaveDay(pin, leaveInput);
-      showToast(result.message);
+      showToast(result.message || `Leave added for ${leaveInput}`);
       setLeaveInput('');
       await loadState();
       refetchGlobalRotation();
     } catch (err) {
-      showToast(err.response?.data?.error || 'Failed to add leave', 'error');
+      showToast(err.response?.data?.error || 'Failed to add leave day', 'error');
     } finally {
       setLoading(false);
+      setActionLoading(null);
     }
   }
 
   async function handleRemoveLeave(date) {
     setLoading(true);
+    setActionLoading(`leave-remove-${date}`);
     try {
       const result = await removeLeaveDay(pin, date);
-      showToast(result.message);
+      showToast(result.message || `Leave removed for ${date}`);
       await loadState();
       refetchGlobalRotation();
     } catch (err) {
-      showToast(err.response?.data?.error || 'Failed to remove leave', 'error');
+      showToast(err.response?.data?.error || 'Failed to remove leave day', 'error');
     } finally {
       setLoading(false);
+      setActionLoading(null);
     }
   }
 
   async function handleAnnouncement(active) {
     setLoading(true);
+    setActionLoading('announcement');
     try {
       const result = await setAnnouncement(pin, announcementInput, active);
-      showToast(result.message);
+      showToast(result.message || (active ? 'Announcement published' : 'Announcement cleared'));
       await loadState();
       refetchGlobalRotation();
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to update announcement', 'error');
     } finally {
       setLoading(false);
+      setActionLoading(null);
     }
   }
 
   async function handlePause() {
     setLoading(true);
+    setActionLoading('pause');
     try {
       const result = await setPause(pin, !state.isPaused);
-      showToast(result.message);
+      showToast(result.message || (state.isPaused ? 'Rotation resumed' : 'Rotation paused'));
       await loadState();
       refetchGlobalRotation();
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to update pause state', 'error');
     } finally {
       setLoading(false);
+      setActionLoading(null);
     }
   }
 
   async function handleSaveSeating() {
-    // Validate
     const unique = new Set(editArrangement);
     if (unique.size !== 6) {
       showToast('Each seat code must appear exactly once', 'error');
@@ -181,37 +191,42 @@ export default function AdminPanel() {
     }
 
     setLoading(true);
+    setActionLoading('seating-save');
     try {
       const result = await updateSeating(pin, editDay, editArrangement);
-      showToast(result.message);
+      showToast(result.message || `Seating for Day ${editDay} updated`);
       await loadSeating();
       refetchGlobalRotation();
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to update seating', 'error');
     } finally {
       setLoading(false);
+      setActionLoading(null);
     }
   }
 
   async function handleResetSeating() {
     setLoading(true);
+    setActionLoading('seating-reset');
     try {
       const result = await resetSeating(pin, editDay);
-      showToast(result.message);
+      showToast(result.message || `Day ${editDay} reset to default`);
       await loadSeating();
       refetchGlobalRotation();
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to reset seating', 'error');
     } finally {
       setLoading(false);
+      setActionLoading(null);
     }
   }
 
   async function handleGenerateRandom() {
     setLoading(true);
+    setActionLoading('random-gen');
     try {
       const result = await generateRandomSeating(pin);
-      showToast(result.message);
+      showToast(result.message || 'Random seating layout generated');
       await loadState();
       await loadSeating();
       refetchGlobalRotation();
@@ -219,263 +234,118 @@ export default function AdminPanel() {
       showToast(err.response?.data?.error || 'Failed to generate random seating', 'error');
     } finally {
       setLoading(false);
+      setActionLoading(null);
     }
   }
 
   async function handleClearRandom() {
     setLoading(true);
+    setActionLoading('random-clear');
     try {
       const result = await clearRandomSeating(pin);
-      showToast(result.message);
+      showToast(result.message || 'Random layout cleared');
       await loadState();
       await loadSeating();
       refetchGlobalRotation();
     } catch (err) {
-      showToast(err.response?.data?.error || 'Failed to clear random seating', 'error');
+      showToast(err.response?.data?.error || 'Failed to clear random layout', 'error');
     } finally {
       setLoading(false);
+      setActionLoading(null);
     }
-  }
-
-  async function handleTestPush() {
-    setLoading(true);
-    try {
-      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-      const res = await fetch(`${API_BASE}/notifications/test-push`, { method: 'POST' });
-      const data = await res.json();
-      showToast(data.message || 'Test push notification sent!');
-    } catch (err) {
-      showToast('Failed to send test push', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleDirectNotification() {
-    // This tests if Chrome/Windows can show notifications at all (bypasses push pipeline)
-    const permission = Notification.permission;
-    if (permission === 'default') {
-      const result = await Notification.requestPermission();
-      if (result !== 'granted') {
-        showToast('Notification permission denied by browser', 'error');
-        return;
-      }
-    } else if (permission === 'denied') {
-      showToast('Notifications are BLOCKED in your browser. Click the lock icon in the URL bar → set Notifications to Allow', 'error');
-      return;
-    }
-
-    try {
-      const reg = await navigator.serviceWorker.getRegistration();
-      if (reg) {
-        await reg.showNotification('CSE5 RRT Direct Test ✅', {
-          body: 'This notification was triggered directly from your browser! If you see this, notifications WORK.',
-          icon: '/favicon.svg',
-          badge: '/favicon.svg',
-          vibrate: [100, 50, 100],
-        });
-        showToast('Direct notification sent via Service Worker!');
-      } else {
-        // Fallback: use Notification API directly
-        new Notification('CSE5 RRT Direct Test ✅', {
-          body: 'This notification was triggered directly! If you see this, notifications WORK.',
-          icon: '/favicon.svg',
-        });
-        showToast('Direct notification sent (no service worker)!');
-      }
-    } catch (err) {
-      showToast('Direct notification failed: ' + err.message, 'error');
-    }
-  }
-
-  async function handleDiagnostics() {
-    const lines = [];
-    lines.push('🔍 Push Notification Diagnostics:');
-    lines.push('---');
-    lines.push(`Browser: ${navigator.userAgent.substring(0, 60)}...`);
-    lines.push(`ServiceWorker support: ${'serviceWorker' in navigator}`);
-    lines.push(`PushManager support: ${'PushManager' in window}`);
-    lines.push(`Notification support: ${'Notification' in window}`);
-    lines.push(`Notification.permission: ${Notification.permission}`);
-
-    if ('serviceWorker' in navigator) {
-      const reg = await navigator.serviceWorker.getRegistration();
-      if (reg) {
-        lines.push(`SW state: ${reg.active ? 'active' : 'not active'}`);
-        lines.push(`SW scope: ${reg.scope}`);
-        const sub = await reg.pushManager.getSubscription();
-        lines.push(`Push subscription: ${sub ? 'EXISTS' : 'NONE'}`);
-        if (sub) {
-          lines.push(`Endpoint: ${sub.endpoint.substring(0, 80)}...`);
-        }
-      } else {
-        lines.push('SW: NO SERVICE WORKER REGISTERED');
-      }
-    }
-
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-    try {
-      const res = await fetch(`${API_BASE}/notifications/count`);
-      const data = await res.json();
-      lines.push(`Server subscribers: ${data.count}`);
-    } catch (e) {
-      lines.push(`Server check failed: ${e.message}`);
-    }
-
-    const report = lines.join('\n');
-    console.log(report);
-    alert(report);
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      {/* Toast notification */}
+    <div className="space-y-6 sm:space-y-8 animate-fade-in">
+      {/* Toast Notification */}
       {toast && (
-        <div className={`fixed top-20 right-4 z-50 animate-slide-down px-5 py-3 rounded-xl shadow-lg text-sm font-medium ${
+        <div className={`fixed top-20 right-4 z-50 animate-slide-down px-5 py-3 rounded-2xl shadow-xl text-xs font-bold ${
           toast.type === 'success'
-            ? 'bg-emerald-500 text-white shadow-emerald-500/25'
-            : 'bg-red-500 text-white shadow-red-500/25'
+            ? 'bg-emerald-600 text-white shadow-emerald-500/25'
+            : 'bg-rose-600 text-white shadow-rose-500/25'
         }`}>
           {toast.message}
         </div>
       )}
 
       {/* Header */}
-      <div className="animate-fade-in">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-              Admin Panel
-            </h1>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-              Manage rotation settings, seating, and announcements
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleTestPush}
-              disabled={loading}
-              className="px-4 py-2 rounded-xl text-sm font-medium bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all flex items-center gap-1.5"
-              title="Test Push Notification on mobile & laptop notification bar"
-            >
-              <span>🔔 Test Notification</span>
-            </button>
-            <button
-              onClick={() => {
-                auth.logout();
-                refetchGlobalRotation();
-              }}
-              className="px-4 py-2 rounded-xl text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/5 transition-all"
-            >
-              Logout
-            </button>
-          </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
+            Admin Dashboard
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Control rotation cycle, override days, manage holidays and announcements
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              auth.logout();
+              refetchGlobalRotation();
+            }}
+            className="px-4 py-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all"
+          >
+            Logout Admin
+          </button>
         </div>
       </div>
 
-      {/* Status Bar */}
-      <div className="animate-fade-in grid grid-cols-2 sm:grid-cols-4 gap-3" style={{ animationDelay: '100ms' }}>
-        <div className="rounded-xl border border-gray-200/50 dark:border-white/5 bg-white/50 dark:bg-white/[0.02] p-4 text-center">
-          <p className="text-2xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">{state.currentDay}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Current Day</p>
+      {/* System Status Overview Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 text-center shadow-xs">
+          <p className="text-2xl font-black bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
+            Day {state.currentDay} / 24
+          </p>
+          <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-1">Current Day</p>
         </div>
-        <div className="rounded-xl border border-gray-200/50 dark:border-white/5 bg-white/50 dark:bg-white/[0.02] p-4 text-center">
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{state.leaveDays.length}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Leave Days</p>
-        </div>
-        <div className="rounded-xl border border-gray-200/50 dark:border-white/5 bg-white/50 dark:bg-white/[0.02] p-4 text-center">
-          <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ${
-            state.isPaused
-              ? 'bg-orange-500/10 text-orange-500'
-              : 'bg-emerald-500/10 text-emerald-500'
-          }`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${state.isPaused ? 'bg-orange-500' : 'bg-emerald-500'}`} />
-            {state.isPaused ? 'Paused' : 'Active'}
+
+        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 text-center shadow-xs">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold">
+            <span className={`w-2 h-2 rounded-full ${state.isPaused ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+            <span className={state.isPaused ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}>
+              {state.isPaused ? 'Paused' : 'Active'}
+            </span>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Rotation</p>
+          <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-1">Rotation Status</p>
         </div>
-        <div className="rounded-xl border border-gray-200/50 dark:border-white/5 bg-white/50 dark:bg-white/[0.02] p-4 text-center">
-          <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ${
+
+        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 text-center shadow-xs">
+          <p className="text-2xl font-black text-slate-800 dark:text-white">
+            {state.leaveDays ? state.leaveDays.length : 0}
+          </p>
+          <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-1">Leave Days</p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 text-center shadow-xs">
+          <div className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
             state.announcement?.active
-              ? 'bg-amber-500/10 text-amber-500'
-              : 'bg-gray-500/10 text-gray-500'
+              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
           }`}>
             {state.announcement?.active ? '📢 Live' : 'None'}
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Announcement</p>
+          <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-1">Announcement</p>
         </div>
       </div>
 
-      {/* Control Cards Grid */}
+      {/* Control Panels Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* ─── Random Seating Generator ────────────────── */}
-        <div className="animate-fade-in-up rounded-2xl border border-gray-200/50 dark:border-white/5 bg-white/50 dark:bg-white/[0.02] backdrop-blur-sm overflow-hidden" style={{ animationDelay: '150ms' }}>
-          <div className="p-5 border-b border-gray-200/50 dark:border-white/5">
+        {/* ─── 1. Rotation Day Manager ─────────────────── */}
+        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
-                <span className="text-lg">🎲</span>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md">
+                📅
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">Random Seating Generator</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Generate seating layout for Day {state.currentDay}</p>
+                <h3 className="font-bold text-slate-900 dark:text-white text-base">Rotation Day Override</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Manually jump to any day in 1–24 cycle</p>
               </div>
             </div>
           </div>
-          <div className="p-5 space-y-4">
-            <div className="flex flex-col gap-3">
-              <div className="flex gap-3">
-                <button
-                  onClick={handleGenerateRandom}
-                  disabled={loading}
-                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-semibold shadow-lg shadow-purple-500/20 disabled:opacity-50 transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
-                >
-                  <span>🎲 Generate</span>
-                </button>
-                <button
-                  onClick={handleClearRandom}
-                  disabled={loading}
-                  className="px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-50 transition-all"
-                  title="Remove Random Layout"
-                >
-                  Clear
-                </button>
-              </div>
-              
-              {(state.randomLayoutDay === state.currentDay && state.randomLayoutGeneratedAt) || state.holidayRandomDate ? (
-                <div className="p-3 bg-purple-50 border border-purple-100 rounded-xl text-xs text-purple-700 space-y-1">
-                  <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[10px]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
-                    {state.holidayRandomDate ? 'Holiday Random Active' : 'Random Layout Active'}
-                  </div>
-                  <p className="font-medium text-gray-600">
-                    {state.holidayRandomDate 
-                      ? `Active for ${state.holidayRandomDate}`
-                      : `Generated: ${new Date(state.randomLayoutGeneratedAt).toLocaleString()}`
-                    }
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-
-        {/* ─── Day Override ─────────────────────────── */}
-        <div className="animate-fade-in-up rounded-2xl border border-gray-200/50 dark:border-white/5 bg-white/50 dark:bg-white/[0.02] backdrop-blur-sm overflow-hidden" style={{ animationDelay: '100ms' }}>
-          <div className="p-5 border-b border-gray-200/50 dark:border-white/5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">Day Override</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Manually set the rotation day (1–24)</p>
-              </div>
-            </div>
-          </div>
-          <form onSubmit={handleSetDay} className="p-5">
+          <form onSubmit={handleSetDay} className="p-5 space-y-4">
             <div className="flex gap-3">
               <input
                 type="number"
@@ -483,82 +353,80 @@ export default function AdminPanel() {
                 max="24"
                 value={dayInput}
                 onChange={(e) => setDayInput(e.target.value)}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white text-center font-mono text-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                className="flex-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-center font-mono font-bold text-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                 placeholder="1–24"
               />
               <button
                 type="submit"
-                disabled={loading}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-medium text-sm shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                disabled={loading || actionLoading === 'set-day'}
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold text-sm shadow-lg shadow-emerald-500/20 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
-                Set Day
+                {actionLoading === 'set-day' ? 'Setting...' : 'Set Day'}
               </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {[1, 6, 12, 18, 24].map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setDayInput(String(d))}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-500 transition-all"
+                >
+                  Day {d}
+                </button>
+              ))}
             </div>
           </form>
         </div>
 
-        {/* ─── Rotation Control ─────────────────────── */}
-        <div className="animate-fade-in-up rounded-2xl border border-gray-200/50 dark:border-white/5 bg-white/50 dark:bg-white/[0.02] backdrop-blur-sm overflow-hidden" style={{ animationDelay: '200ms' }}>
-          <div className="p-5 border-b border-gray-200/50 dark:border-white/5">
+        {/* ─── 2. Pause / Resume Rotation ────────────────── */}
+        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                state.isPaused
-                  ? 'bg-gradient-to-br from-orange-500 to-red-600'
-                  : 'bg-gradient-to-br from-emerald-500 to-green-600'
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow-md ${
+                state.isPaused ? 'bg-gradient-to-br from-amber-500 to-orange-600' : 'bg-gradient-to-br from-emerald-500 to-teal-600'
               }`}>
-                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                  {state.isPaused ? (
-                    <path d="M8 5v14l11-7z" />
-                  ) : (
-                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                  )}
-                </svg>
+                {state.isPaused ? '⏸️' : '▶️'}
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">Rotation Control</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Pause or resume auto-rotation</p>
+                <h3 className="font-bold text-slate-900 dark:text-white text-base">Pause / Resume Rotation</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Freeze seating arrangement until resumed</p>
               </div>
             </div>
           </div>
-          <div className="p-5">
+          <div className="p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-700 dark:text-gray-300">
-                  Status: <span className={`font-semibold ${state.isPaused ? 'text-orange-500' : 'text-emerald-500'}`}>
-                    {state.isPaused ? 'Paused' : 'Running'}
-                  </span>
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Last advance: {state.lastAdvanceDate}
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Current State</p>
+                <p className={`text-base font-extrabold mt-0.5 ${state.isPaused ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                  {state.isPaused ? 'Paused — Auto-rotation frozen' : 'Active — Auto-rotation running'}
                 </p>
               </div>
               <button
                 onClick={handlePause}
-                disabled={loading}
-                className={`px-5 py-2.5 rounded-xl font-medium text-sm text-white shadow-lg disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98] ${
+                disabled={loading || actionLoading === 'pause'}
+                className={`px-6 py-3 rounded-xl font-bold text-sm text-white shadow-lg disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98] ${
                   state.isPaused
-                    ? 'bg-gradient-to-r from-emerald-500 to-green-600 shadow-emerald-500/20'
-                    : 'bg-gradient-to-r from-orange-500 to-red-600 shadow-orange-500/20'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 shadow-emerald-500/20'
+                    : 'bg-gradient-to-r from-amber-500 to-orange-600 shadow-amber-500/20'
                 }`}
               >
-                {state.isPaused ? '▶ Resume' : '⏸ Pause'}
+                {actionLoading === 'pause' ? 'Updating...' : state.isPaused ? '▶ Resume Rotation' : '⏸ Pause Rotation'}
               </button>
             </div>
           </div>
         </div>
 
-        {/* ─── Leave Days ───────────────────────────── */}
-        <div className="animate-fade-in-up rounded-2xl border border-gray-200/50 dark:border-white/5 bg-white/50 dark:bg-white/[0.02] backdrop-blur-sm overflow-hidden" style={{ animationDelay: '300ms' }}>
-          <div className="p-5 border-b border-gray-200/50 dark:border-white/5">
+        {/* ─── 3. Leave Days Manager ────────────────────── */}
+        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 text-white flex items-center justify-center shadow-md">
+                🏖️
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">Leave Days</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Mark dates to skip (Sundays auto-skipped)</p>
+                <h3 className="font-bold text-slate-900 dark:text-white text-base">Leave Days & Holidays</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Configure dates to skip (Weekends auto-skipped)</p>
               </div>
             </div>
           </div>
@@ -568,51 +436,55 @@ export default function AdminPanel() {
                 type="date"
                 value={leaveInput}
                 onChange={(e) => setLeaveInput(e.target.value)}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all"
+                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all"
               />
               <button
                 type="submit"
-                disabled={loading || !leaveInput}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 text-white font-medium text-sm shadow-lg shadow-rose-500/20 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                disabled={loading || !leaveInput || actionLoading === 'leave-add'}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 text-white font-semibold text-sm shadow-lg shadow-rose-500/20 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
-                Add
+                {actionLoading === 'leave-add' ? 'Adding...' : 'Add Leave'}
               </button>
             </form>
 
-            <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
-              {state.leaveDays.length === 0 ? (
-                <p className="text-sm text-gray-400 dark:text-gray-500 italic">No leave days configured</p>
-              ) : (
-                state.leaveDays.map((date) => (
-                  <span
-                    key={date}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium group"
-                  >
-                    {new Date(date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    <button
-                      onClick={() => handleRemoveLeave(date)}
-                      className="opacity-50 hover:opacity-100 transition-opacity"
-                      title="Remove"
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Configured Leave Days</p>
+              <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto pt-1">
+                {!state.leaveDays || state.leaveDays.length === 0 ? (
+                  <p className="text-xs text-slate-400 dark:text-slate-500 italic">No leave days configured</p>
+                ) : (
+                  state.leaveDays.map((date) => (
+                    <span
+                      key={date}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold"
                     >
-                      ✕
-                    </button>
-                  </span>
-                ))
-              )}
+                      {new Date(date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      <button
+                        onClick={() => handleRemoveLeave(date)}
+                        disabled={loading}
+                        className="hover:text-rose-800 dark:hover:text-rose-200 transition-colors font-black"
+                        title="Delete leave day"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* ─── Announcements ────────────────────────── */}
-        <div className="animate-fade-in-up rounded-2xl border border-gray-200/50 dark:border-white/5 bg-white/50 dark:bg-white/[0.02] backdrop-blur-sm overflow-hidden" style={{ animationDelay: '400ms' }}>
-          <div className="p-5 border-b border-gray-200/50 dark:border-white/5">
+        {/* ─── 4. Announcements Manager ──────────────────── */}
+        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
-                <span className="text-lg">📢</span>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-md">
+                📢
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">Announcements</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Post messages to students</p>
+                <h3 className="font-bold text-slate-900 dark:text-white text-base">Student Announcement</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Post prominent notices on student dashboard</p>
               </div>
             </div>
           </div>
@@ -620,69 +492,78 @@ export default function AdminPanel() {
             <textarea
               value={announcementInput}
               onChange={(e) => setAnnouncementInput(e.target.value)}
-              placeholder="e.g., Exam seating today — check notice board"
+              placeholder="e.g., Tomorrow's class will be conducted in Room 204."
               rows={3}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all resize-none"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all resize-none"
             />
 
             <div className="flex gap-3">
               <button
                 onClick={() => handleAnnouncement(true)}
-                disabled={loading || !announcementInput.trim()}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-medium text-sm shadow-lg shadow-amber-500/20 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                disabled={loading || !announcementInput.trim() || actionLoading === 'announcement'}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold text-sm shadow-lg shadow-amber-500/20 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
-                {state.announcement?.active ? 'Update' : 'Publish'}
+                {actionLoading === 'announcement' ? 'Saving...' : state.announcement?.active ? 'Update Announcement' : 'Publish Announcement'}
               </button>
+
               {state.announcement?.active && (
                 <button
                   onClick={() => handleAnnouncement(false)}
-                  disabled={loading}
-                  className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 font-medium text-sm hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-50 transition-all"
+                  disabled={loading || actionLoading === 'announcement'}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-sm hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 transition-all"
                 >
                   Clear
                 </button>
               )}
             </div>
 
-            {state.announcement?.active && (
-              <div className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/5 rounded-lg px-3 py-2">
-                ✓ Announcement is live: "{state.announcement.text}"
+            {state.announcement?.active ? (
+              <div className="text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 rounded-xl p-3 border border-amber-500/20">
+                <span className="font-bold">Active Notice:</span> "{state.announcement.text}"
               </div>
+            ) : (
+              <p className="text-xs text-slate-400 dark:text-slate-500 italic">No current announcements active</p>
             )}
           </div>
         </div>
+
       </div>
 
-      {/* ─── Seating Editor (Full Width) ────────────────── */}
-      <div className="animate-fade-in-up rounded-2xl border border-gray-200/50 dark:border-white/5 bg-white/50 dark:bg-white/[0.02] backdrop-blur-sm overflow-hidden" style={{ animationDelay: '500ms' }}>
-        <div className="p-5 border-b border-gray-200/50 dark:border-white/5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">Edit Seating Arrangements</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Customize seating for any day (1–24)</p>
-              </div>
+      {/* ─── 5. Custom Seating Editor & Random Generator ──── */}
+      <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-md">
+              🛠️
             </div>
+            <div>
+              <h3 className="font-bold text-slate-900 dark:text-white text-base">Custom Seating Editor & Generator</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Override row arrangements or generate random layouts</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleGenerateRandom}
+              disabled={loading || actionLoading === 'random-gen'}
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 transition-all"
+            >
+              🎲 Generate Random
+            </button>
             <button
               onClick={() => setShowEditor(!showEditor)}
-              className="px-4 py-2 rounded-xl text-sm font-medium bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 transition-all"
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 transition-all"
             >
-              {showEditor ? 'Hide Editor' : 'Open Editor'}
+              {showEditor ? 'Hide Custom Editor' : 'Open Custom Editor'}
             </button>
           </div>
         </div>
 
         {showEditor && (
-          <div className="p-5 space-y-5">
-            {/* Day selector */}
+          <div className="p-5 space-y-6 animate-fade-in">
+            {/* Day Selector Grid */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Select Day to Edit
+              <label className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+                Select Rotation Day to Customize (1–24)
               </label>
               <div className="flex flex-wrap gap-2">
                 {Array.from({ length: 24 }, (_, i) => i + 1).map((d) => {
@@ -691,12 +572,12 @@ export default function AdminPanel() {
                     <button
                       key={d}
                       onClick={() => setEditDay(d)}
-                      className={`w-10 h-10 rounded-lg text-sm font-medium transition-all hover:scale-105 ${
+                      className={`w-9 h-9 rounded-xl text-xs font-bold transition-all hover:scale-105 ${
                         editDay === d
-                          ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25'
+                          ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md'
                           : isCustom
-                            ? 'bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400'
-                            : 'bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10'
+                            ? 'bg-amber-500/20 border border-amber-500/40 text-amber-600 dark:text-amber-400'
+                            : 'bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
                       }`}
                     >
                       {d}
@@ -704,20 +585,17 @@ export default function AdminPanel() {
                   );
                 })}
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                <span className="inline-block w-2 h-2 rounded bg-amber-500/30 mr-1" /> = Custom arrangement applied
-              </p>
             </div>
 
-            {/* Arrangement editor */}
+            {/* Row Selectors */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Day {editDay} — Seating (Row 1 → Row 6)
+              <label className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+                Day {editDay} Seating (Row 1 → Row 6)
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {editArrangement.map((code, idx) => (
                   <div key={idx}>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Row {idx + 1}</label>
+                    <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-1">Row {idx + 1}</label>
                     <select
                       value={code}
                       onChange={(e) => {
@@ -725,11 +603,7 @@ export default function AdminPanel() {
                         updated[idx] = e.target.value;
                         setEditArrangement(updated);
                       }}
-                      className={`w-full px-3 py-2.5 rounded-xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all ${
-                        code.startsWith('G')
-                          ? 'border-pink-500/30 bg-pink-500/5 text-pink-600 dark:text-pink-400 dark:bg-pink-500/5 dark:border-pink-500/20'
-                          : 'border-blue-500/30 bg-blue-500/5 text-blue-600 dark:text-blue-400 dark:bg-blue-500/5 dark:border-blue-500/20'
-                      }`}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                     >
                       {VALID_CODES.map((c) => (
                         <option key={c} value={c}>{c}</option>
@@ -740,64 +614,34 @@ export default function AdminPanel() {
               </div>
             </div>
 
-            {/* Actions */}
+            {/* Save / Reset Actions */}
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={handleSaveSeating}
-                disabled={loading}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium text-sm shadow-lg shadow-indigo-500/20 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                disabled={loading || actionLoading === 'seating-save'}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold text-sm shadow-lg shadow-indigo-500/20 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
-                💾 Save Changes
+                {actionLoading === 'seating-save' ? 'Saving...' : '💾 Save Custom Seating'}
               </button>
               <button
                 onClick={handleResetSeating}
-                disabled={loading}
-                className="px-6 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 font-medium text-sm hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-50 transition-all"
+                disabled={loading || actionLoading === 'seating-reset'}
+                className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-sm hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 transition-all"
               >
-                🔄 Reset to Default
+                {actionLoading === 'seating-reset' ? 'Resetting...' : '🔄 Reset Day to Default'}
+              </button>
+              <button
+                onClick={handleClearRandom}
+                disabled={loading || actionLoading === 'random-clear'}
+                className="px-6 py-2.5 rounded-xl border border-purple-200 dark:border-purple-500/30 text-purple-600 dark:text-purple-400 font-semibold text-sm hover:bg-purple-50 dark:hover:bg-purple-500/10 disabled:opacity-50 transition-all"
+              >
+                Clear Random Layout
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* 🔔 Notification Testing & Diagnostics */}
-      <div className="card p-5 sm:p-6 space-y-4">
-        <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
-          🔔 Push Notification Testing
-        </h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Test if push notifications are working on your device.
-        </p>
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={handleTestPush}
-            disabled={loading}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-medium text-sm shadow-lg shadow-amber-500/20 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
-          >
-            🔔 Server Push Test
-          </button>
-          <button
-            onClick={handleDirectNotification}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium text-sm shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
-          >
-            📲 Direct Notification Test
-          </button>
-          <button
-            onClick={handleDiagnostics}
-            className="px-5 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 font-medium text-sm hover:bg-gray-100 dark:hover:bg-white/5 transition-all"
-          >
-            🔍 Run Diagnostics
-          </button>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <footer className="text-center pt-4 pb-8">
-        <p className="text-sm font-medium bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
-          Made with ❤️ for CSE5
-        </p>
-      </footer>
     </div>
   );
 }

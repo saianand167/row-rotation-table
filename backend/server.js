@@ -94,8 +94,8 @@ async function start() {
     // Initialize Critical Admin account (from env var) on first boot
     await CriticalAdmin.getAdmin();
 
-    server.listen(PORT, () => {
-      console.log(`🚀 RRT Backend running with WebSockets on http://localhost:${PORT}`);
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 RRT Backend running with WebSockets on http://0.0.0.0:${PORT} (listening on all network interfaces)`);
     });
   } catch (err) {
     console.error('❌ Failed to connect to MongoDB:', err.message);

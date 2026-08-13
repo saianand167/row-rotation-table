@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">RRT — Row Rotation Table</string>
+    <string name="title_activity_main">RRT — Row Rotation Table</string>
+    <string name="package_name">com.rrt.rowrotationtable</string>
+    <string name="custom_url_scheme">com.rrt.rowrotationtable</string>
+</resources>

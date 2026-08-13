@@ -1,13 +1,13 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
-import { fetchRotation } from '../utils/api';
+import { fetchRotation, getApiBaseUrl } from '../utils/api';
 import { useAdminAuth } from '../hooks/useAdminAuth';
 
 const AppContext = createContext(null);
 
-const SOCKET_URL = import.meta.env.VITE_API_URL 
-  ? import.meta.env.VITE_API_URL.replace('/api', '')
-  : 'http://localhost:5000';
+function getSocketUrl() {
+  return getApiBaseUrl().replace('/api', '');
+}
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -35,7 +35,7 @@ export function AppProvider({ children }) {
       setError(null);
     } catch (err) {
       console.error('Failed to fetch rotation:', err);
-      setError(err.message || 'Failed to connect to server');
+      setError('Unable to connect to the RRT server. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -59,7 +59,6 @@ export function AppProvider({ children }) {
 
         let subscription = await registration.pushManager.getSubscription();
 
-        // If subscription exists, verify whether its key matches the server's permanent VAPID key
         if (subscription && subscription.options && subscription.options.applicationServerKey) {
           const currentKeyArray = new Uint8Array(subscription.options.applicationServerKey);
           const newKeyArray = urlBase64ToUint8Array(publicKey);
@@ -68,7 +67,6 @@ export function AppProvider({ children }) {
             currentKeyArray.every((val, index) => val === newKeyArray[index]);
 
           if (!isSameKey) {
-            console.log('🔄 Stale VAPID key detected. Automatically unsubscribing old push subscription...');
             await subscription.unsubscribe();
             subscription = null;
           }
@@ -79,7 +77,6 @@ export function AppProvider({ children }) {
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(publicKey),
           });
-          console.log('✨ Fresh Web Push Subscription registered!');
         }
 
         await fetch(`${API_BASE}/notifications/subscribe`, {
@@ -87,8 +84,6 @@ export function AppProvider({ children }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ subscription }),
         });
-
-        console.log('📲 Web Push Subscription registered successfully!');
       } catch (err) {
         console.error('Service Worker / Push Registration failed:', err);
       }
@@ -100,8 +95,13 @@ export function AppProvider({ children }) {
   useEffect(() => {
     refetch();
 
+    // Polling fallback every 10 seconds to ensure real-time consistency
+    const pollInterval = setInterval(() => {
+      refetch();
+    }, 10000);
+
     // Connect to Socket.io server
-    const socket = io(SOCKET_URL, {
+    const socket = io(getSocketUrl(), {
       transports: ['websocket', 'polling'],
     });
 
@@ -110,10 +110,9 @@ export function AppProvider({ children }) {
     });
 
     socket.on('state_updated', (payload) => {
-      console.log('⚡ Real-time update received:', payload);
       refetch();
       
-      let title = 'CSE5 RRT Update ⚡';
+      let title = 'RRT Update ⚡';
       let msg = 'Admin updated seating or rotation settings.';
 
       switch (payload?.action) {
@@ -160,7 +159,6 @@ export function AppProvider({ children }) {
       setLiveNotification({ title, msg });
       setTimeout(() => setLiveNotification(null), 5000);
 
-      // Always trigger native browser push notification if permitted
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification(title, {
           body: msg,
@@ -169,6 +167,7 @@ export function AppProvider({ children }) {
     });
 
     return () => {
+      clearInterval(pollInterval);
       socket.disconnect();
     };
   }, [refetch]);
@@ -187,7 +186,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={value}>
       {children}
       {liveNotification && (
-        <div className="fixed bottom-5 right-5 z-50 animate-bounce bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-emerald-400 max-w-sm">
+        <div className="fixed bottom-5 right-5 z-50 animate-bounce bg-emerald-600 dark:bg-emerald-500 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-emerald-400 max-w-sm">
           <span className="text-2xl">🔔</span>
           <div>
             <p className="text-sm font-bold">{liveNotification.title}</p>

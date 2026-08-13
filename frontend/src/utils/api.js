@@ -1,10 +1,28 @@
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+export function getApiBaseUrl() {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (typeof window !== 'undefined' && window.localStorage?.getItem('rrt_api_url')) {
+    return window.localStorage.getItem('rrt_api_url');
+  }
+  const isCapacitor = typeof window !== 'undefined' && (
+    window.Capacitor?.isNativePlatform?.() ||
+    window.location.protocol === 'capacitor:' ||
+    window.location.protocol === 'file:'
+  );
+  if (isCapacitor) {
+    return 'http://10.196.17.82:5000/api';
+  }
+  return 'http://localhost:5000/api';
+}
 
 const api = axios.create({
-  baseURL: API_BASE,
   timeout: 10000,
+});
+
+api.interceptors.request.use((config) => {
+  config.baseURL = getApiBaseUrl();
+  return config;
 });
 
 function getLocalDateString() {

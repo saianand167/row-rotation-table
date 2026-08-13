@@ -1,0 +1,12 @@
+{
+  "appId": "com.rrt.rowrotationtable",
+  "appName": "RRT — Row Rotation Table",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}
