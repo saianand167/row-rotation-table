@@ -11,7 +11,7 @@ export function getApiBaseUrl() {
     window.location.protocol === 'file:'
   );
   if (isCapacitor) {
-    return 'http://10.196.17.82:5000/api';
+    return 'https://row-rotation-table-1.onrender.com/api';
   }
   return 'http://localhost:5000/api';
 }
