@@ -33,8 +33,11 @@ export default function AdminPanel() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const [loadError, setLoadError] = useState(null);
+
   const loadState = useCallback(async () => {
     if (!pin) return;
+    setLoadError(null);
     try {
       const data = await fetchAdminState(pin);
       setState(data);
@@ -42,9 +45,15 @@ export default function AdminPanel() {
       setAnnouncementInput(data.announcement?.text || '');
     } catch (err) {
       console.error('Failed to load state:', err);
-      showToast('Failed to load admin state', 'error');
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        auth.logout();
+        showToast('Admin session expired. Please sign in again.', 'error');
+      } else {
+        setLoadError('Unable to connect to the backend server. Please check your connection.');
+        showToast('Failed to load admin state', 'error');
+      }
     }
-  }, [pin]);
+  }, [pin, auth]);
 
   const loadSeating = useCallback(async () => {
     if (!pin) return;
@@ -53,8 +62,11 @@ export default function AdminPanel() {
       setAllSeating(data.seating);
     } catch (err) {
       console.error('Failed to load seating:', err);
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        auth.logout();
+      }
     }
-  }, [pin]);
+  }, [pin, auth]);
 
   useEffect(() => {
     if (pin) {
@@ -73,12 +85,45 @@ export default function AdminPanel() {
     return <AdminLogin onLogin={auth.savePin} />;
   }
 
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center">
+          <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">Admin Connection Error</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">{loadError}</p>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={() => {
+              loadState();
+              loadSeating();
+            }}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-semibold shadow-md hover:scale-105 transition-all"
+          >
+            Retry
+          </button>
+          <button
+            onClick={() => auth.logout()}
+            className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!state) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-3">
         <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/25 animate-pulse">
           <svg className="w-6 h-6 text-white animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4} />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
         </div>

@@ -62,7 +62,7 @@ const appStateSchema = new mongoose.Schema({
   // Admin password — set ADMIN_PIN env var in production to override
   adminPin: {
     type: String,
-    default: () => process.env.ADMIN_PIN || '1234',
+    default: () => process.env.ADMIN_PIN || 'CSE5@123',
   },
 
   // Config for whether the rows display feature is visible in the navbar

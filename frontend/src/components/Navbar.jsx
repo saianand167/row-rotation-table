@@ -2,12 +2,22 @@ import { useState, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
+import { useTodo } from '../context/TodoContext';
 
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { refetch, auth } = useApp();
+  const {
+    refetch,
+    auth,
+    notificationsEnabled,
+    enableNotifications,
+    toggleNotificationDrawer,
+    unreadNotificationsCount,
+    rotationData,
+  } = useApp();
   const { isDark, toggleTheme } = useTheme();
+  const { isAuthenticated: isTodoAuth, user: todoUser } = useTodo();
   
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -17,6 +27,9 @@ export default function Navbar() {
 
   const lastTapRef = useRef(0);
   const tapTimeoutRef = useRef(null);
+
+  const hasActiveAnnouncement = !!(rotationData?.announcement?.active && rotationData?.announcement?.text);
+  const badgeCount = unreadNotificationsCount + (hasActiveAnnouncement ? 1 : 0);
 
   // Secret feature: Double click on logo launches critical admin if configured
   const handleLogoClick = (e) => {
@@ -47,6 +60,8 @@ export default function Navbar() {
     }
   };
 
+  const isTodoActive = location.pathname.startsWith('/todo');
+
   return (
     <>
       <nav className="fixed top-0 left-0 right-0 z-40 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-colors duration-300">
@@ -57,43 +72,62 @@ export default function Navbar() {
             <Link
               to="/"
               onClick={handleLogoClick}
-              className="flex items-center gap-2.5 group cursor-pointer select-none"
+              className="flex items-center gap-3 group focus:outline-none"
+              aria-label="Row Rotation Table Home"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-                <span className="text-xl">🪑</span>
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 via-teal-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:shadow-emerald-500/30 group-hover:scale-105 transition-all duration-300">
+                <span className="text-white text-lg font-black tracking-wider">R</span>
               </div>
-              <div className="flex flex-col">
-                <span className="text-lg font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 dark:from-emerald-400 dark:via-teal-400 dark:to-cyan-400 bg-clip-text text-transparent">
-                  RRT
+              <div>
+                <span className="text-lg font-black tracking-tight text-slate-900 dark:text-white group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">
+                  CSE-5
                 </span>
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 -mt-1 hidden sm:inline-block">
-                  Row Rotation Table
+                <span className="text-xs block font-bold text-slate-600 dark:text-slate-300 tracking-wider">
+                  Row Rotation
                 </span>
               </div>
             </Link>
 
             {/* Desktop Navigation Links */}
-            <div className="hidden sm:flex items-center gap-1">
+            <div className="hidden sm:flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-md">
               <Link
                 to="/"
-                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
                   location.pathname === '/'
-                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                    ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-700/50'
                 }`}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
-                Dashboard
+                Class View
+              </Link>
+
+              {/* To-Do & Tasks Link */}
+              <Link
+                to={isTodoAuth ? "/todo/dashboard" : "/todo"}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
+                  isTodoActive
+                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-sm shadow-indigo-500/20'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-700/50'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                <span>To-Do & Tasks</span>
+                {isTodoAuth && todoUser && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
+                )}
               </Link>
 
               <Link
                 to="/admin"
-                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
                   location.pathname === '/admin'
-                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                    ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-700/50'
                 }`}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -104,8 +138,41 @@ export default function Navbar() {
               </Link>
             </div>
 
-            {/* Right Controls: Dark Mode Toggle & Admin Auth Action */}
-            <div className="hidden sm:flex items-center gap-3">
+            {/* Right Controls: Notification Bell, Dark Mode Toggle & Admin Auth Action */}
+            <div className="hidden sm:flex items-center gap-2.5">
+              {/* Notification Bell Button (Activates & Tests Device Push Notifications) */}
+              <button
+                onClick={async () => {
+                  const granted = await enableNotifications();
+                  if (granted || notificationsEnabled) {
+                    try {
+                      // Trigger direct test push to device notification bar
+                      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+                      await fetch(`${API_BASE}/notifications/test-push`, { method: 'POST' });
+                    } catch (e) {
+                      console.error('Test push error:', e);
+                    }
+                  }
+                }}
+                className={`p-2 rounded-xl transition-all relative ${
+                  notificationsEnabled
+                    ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                } hover:scale-105 active:scale-95`}
+                title={notificationsEnabled ? 'Click to Test Device Push Notification 🔔' : 'Click to Enable Device Notifications 🔔'}
+                aria-label="Toggle Device Notifications"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                {notificationsEnabled && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                )}
+                {notificationsEnabled && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500" />
+                )}
+              </button>
+
               {/* Dark/Light Mode Switch */}
               <button
                 onClick={toggleTheme}
@@ -147,6 +214,23 @@ export default function Navbar() {
             {/* Mobile Menu & Theme Buttons */}
             <div className="flex sm:hidden items-center gap-2">
               <button
+                onClick={toggleNotificationDrawer}
+                className="p-2 rounded-xl transition-all relative text-slate-600 dark:text-slate-300"
+                title="Announcements"
+                aria-label="Announcements"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                {badgeCount > 0 && (
+                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                )}
+                {badgeCount > 0 && (
+                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500" />
+                )}
+              </button>
+
+              <button
                 onClick={toggleTheme}
                 className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 aria-label="Toggle Theme"
@@ -187,6 +271,28 @@ export default function Navbar() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
                 Dashboard
+              </Link>
+
+              <Link
+                to={isTodoAuth ? '/todo/dashboard' : '/todo'}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  isTodoActive
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    : 'text-slate-700 dark:text-slate-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                  To-Do & Tasks
+                </div>
+                {isTodoAuth && todoUser?.username && (
+                  <span className="px-2 py-0.5 text-[11px] rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold truncate max-w-[100px]">
+                    {todoUser.username}
+                  </span>
+                )}
               </Link>
 
               <Link

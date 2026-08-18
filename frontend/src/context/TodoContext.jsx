@@ -18,7 +18,7 @@ export function TodoProvider({ children }) {
 
   // Check if user has a valid session on mount
   useEffect(() => {
-    const storedToken = sessionStorage.getItem('todo_token');
+    const storedToken = localStorage.getItem('todo_token') || sessionStorage.getItem('todo_token');
     if (storedToken) {
       setAuthToken(storedToken);
       checkAuth();
@@ -38,6 +38,7 @@ export function TodoProvider({ children }) {
       setIsAuthenticated(true);
     } catch {
       clearAuthToken();
+      localStorage.removeItem('todo_token');
       sessionStorage.removeItem('todo_token');
       setUser(null);
       setIsAuthenticated(false);
@@ -49,6 +50,7 @@ export function TodoProvider({ children }) {
   const login = useCallback(async (username, password) => {
     const data = await loginUser(username, password);
     if (data.success && data.token) {
+      localStorage.setItem('todo_token', data.token);
       sessionStorage.setItem('todo_token', data.token);
       setUser(data.user);
       setIsAuthenticated(true);
@@ -63,6 +65,7 @@ export function TodoProvider({ children }) {
 
   const logout = useCallback(async () => {
     await logoutUser();
+    localStorage.removeItem('todo_token');
     sessionStorage.removeItem('todo_token');
     setUser(null);
     setIsAuthenticated(false);

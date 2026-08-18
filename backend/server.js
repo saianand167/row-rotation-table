@@ -28,7 +28,7 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/rrt';
 // Initialize Socket.io
 socket.init(server);
 
-// CORS — allow frontend domains + Android WebView (capacitor://localhost sends null origin)
+// CORS — allow frontend domains + local dev + Android WebView
 const frontendUrl = process.env.FRONTEND_URL || '';
 const allowedOrigins = frontendUrl && frontendUrl !== '*'
   ? frontendUrl.split(',').map(o => o.trim())
@@ -36,8 +36,13 @@ const allowedOrigins = frontendUrl && frontendUrl !== '*'
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow: no origin (curl/Postman/mobile WebView), wildcard config, or matching origins
-    if (!origin || frontendUrl === '*' || allowedOrigins.includes(origin)) {
+    if (
+      !origin ||
+      frontendUrl === '*' ||
+      allowedOrigins.includes(origin) ||
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1')
+    ) {
       callback(null, true);
     } else {
       callback(new Error(`CORS blocked for origin: ${origin}`));
@@ -87,24 +92,54 @@ app.get('/api/health', (req, res) => {
 
 // Connect to MongoDB and start server
 async function start() {
-  try {
-    await mongoose.connect(MONGO_URI);
-    console.log('✅ Connected to MongoDB');
-    await pushNotification.initVapidKeys();
+  let connected = false;
 
-    // Initialize Critical Admin account (from env var) on first boot
-    await CriticalAdmin.getAdmin();
+  // 1. Try remote MongoDB URI if explicitly provided in environment
+  if (process.env.MONGO_URI && !process.env.MONGO_URI.includes('127.0.0.1') && !process.env.MONGO_URI.includes('localhost')) {
+    try {
+      await mongoose.connect(process.env.MONGO_URI);
+      console.log('✅ Connected to MongoDB Atlas/Remote');
+      connected = true;
+    } catch (err) {
+      console.warn('⚠️ Could not connect to remote MONGO_URI:', err.message);
+    }
+  }
 
-    server.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 RRT Backend running with WebSockets on http://0.0.0.0:${PORT} (listening on all network interfaces)`);
-    });
-  } catch (err) {
-    console.error('❌ Failed to connect to MongoDB:', err.message);
-    console.log('\n💡 Make sure MongoDB is running:');
-    console.log('   - Local: mongod --dbpath /data/db');
-    console.log('   - Or set MONGO_URI env variable to your Atlas connection string');
+  // 2. Try local MongoDB instance
+  if (!connected) {
+    try {
+      await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 2000 });
+      console.log('✅ Connected to Local MongoDB');
+      connected = true;
+    } catch (err) {
+      // 3. Fallback to embedded In-Memory MongoDB automatically
+      console.log('ℹ️ Local MongoDB server not detected, starting embedded in-memory MongoDB...');
+      try {
+        const { MongoMemoryServer } = require('mongodb-memory-server');
+        const mongod = await MongoMemoryServer.create();
+        const memUri = mongod.getUri();
+        await mongoose.connect(memUri);
+        console.log('✅ Connected to Embedded In-Memory MongoDB');
+        connected = true;
+      } catch (memErr) {
+        console.error('❌ Failed to start embedded MongoDB:', memErr.message);
+      }
+    }
+  }
+
+  if (!connected) {
+    console.error('❌ Failed to connect to any MongoDB database instance.');
     process.exit(1);
   }
+
+  await pushNotification.initVapidKeys();
+
+  // Initialize Critical Admin account (from env var) on first boot
+  await CriticalAdmin.getAdmin();
+
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 RRT Backend running with WebSockets on http://0.0.0.0:${PORT} (listening on all network interfaces)`);
+  });
 }
 
 start();

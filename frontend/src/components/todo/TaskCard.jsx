@@ -1,9 +1,9 @@
 import { useState } from 'react';
 
 const priorityColors = {
-  high: 'bg-red-50 text-red-600 border-red-100',
-  medium: 'bg-amber-50 text-amber-600 border-amber-100',
-  low: 'bg-blue-50 text-blue-600 border-blue-100',
+  high: 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-100 dark:border-red-500/20',
+  medium: 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-500/20',
+  low: 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-500/20',
 };
 
 const priorityLabels = {
@@ -14,10 +14,10 @@ const priorityLabels = {
 
 const statusIcons = {
   pending: (
-    <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0 cursor-pointer hover:border-emerald-400 transition-colors" />
+    <div className="w-5 h-5 rounded-full border-2 border-slate-300 dark:border-slate-600 flex-shrink-0 cursor-pointer hover:border-emerald-400 transition-colors" />
   ),
   in_progress: (
-    <div className="w-5 h-5 rounded-full border-2 border-amber-400 bg-amber-50 flex-shrink-0 cursor-pointer flex items-center justify-center transition-colors">
+    <div className="w-5 h-5 rounded-full border-2 border-amber-400 bg-amber-50 dark:bg-amber-500/20 flex-shrink-0 cursor-pointer flex items-center justify-center transition-colors">
       <div className="w-2 h-2 rounded-full bg-amber-400" />
     </div>
   ),
@@ -54,8 +54,8 @@ export default function TaskCard({ task, onStatusChange, onEdit, onDelete, onAdd
     <div
       className={`group relative flex items-start gap-3 p-3.5 rounded-xl border transition-all duration-200 hover:shadow-md ${
         task.status === 'completed'
-          ? 'bg-emerald-50/50 border-emerald-100'
-          : 'bg-white border-gray-100 hover:border-gray-200'
+          ? 'bg-emerald-50/60 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20'
+          : 'bg-white dark:bg-slate-800/90 border-slate-200/80 dark:border-slate-700/70 hover:border-emerald-300 dark:hover:border-emerald-500/40'
       }`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
@@ -70,7 +70,7 @@ export default function TaskCard({ task, onStatusChange, onEdit, onDelete, onAdd
         <div className="flex items-center gap-2 flex-wrap">
           <h4
             className={`text-sm font-semibold transition-all ${
-              task.status === 'completed' ? 'line-through text-gray-500 font-medium' : 'text-gray-900'
+              task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500 font-medium' : 'text-slate-900 dark:text-white'
             }`}
           >
             {task.title}
@@ -81,14 +81,14 @@ export default function TaskCard({ task, onStatusChange, onEdit, onDelete, onAdd
         </div>
 
         {task.description && (
-          <p className={`text-xs mt-1 ${task.status === 'completed' ? 'text-gray-500 line-through' : 'text-gray-700'}`}>
+          <p className={`text-xs mt-1 ${task.status === 'completed' ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-600 dark:text-slate-300'}`}>
             {task.description}
           </p>
         )}
 
-        <div className="flex items-center gap-3 mt-1.5">
+        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
           {task.deadline && (
-            <span className="text-[10px] font-medium text-gray-400 flex items-center gap-1">
+            <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 flex items-center gap-1">
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
@@ -96,7 +96,7 @@ export default function TaskCard({ task, onStatusChange, onEdit, onDelete, onAdd
             </span>
           )}
           {task.sourceTaskId && (
-            <span className="text-[10px] font-medium text-indigo-400 flex items-center gap-1">
+            <span className="text-[10px] font-medium text-indigo-500 dark:text-indigo-400 flex items-center gap-1">
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
               </svg>
@@ -106,12 +106,12 @@ export default function TaskCard({ task, onStatusChange, onEdit, onDelete, onAdd
         </div>
       </div>
 
-      {/* Action buttons */}
-      <div className={`flex items-center gap-1 transition-opacity ${showActions ? 'opacity-100' : 'opacity-0'}`}>
+      {/* Action buttons (always accessible on touch devices, hover on desktop) */}
+      <div className={`flex items-center gap-1 transition-opacity ${showActions ? 'opacity-100' : 'opacity-80 sm:opacity-0 sm:group-hover:opacity-100'}`}>
         {showAddToToday && task.status !== 'completed' && (
           <button
             onClick={() => onAddToToday?.(task)}
-            className="p-1.5 rounded-lg text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+            className="p-1.5 rounded-lg text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 transition-colors"
             title="Add to today"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -121,7 +121,7 @@ export default function TaskCard({ task, onStatusChange, onEdit, onDelete, onAdd
         )}
         <button
           onClick={() => onEdit?.(task)}
-          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
           title="Edit"
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -130,7 +130,7 @@ export default function TaskCard({ task, onStatusChange, onEdit, onDelete, onAdd
         </button>
         <button
           onClick={() => onDelete?.(task._id)}
-          className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
           title="Delete"
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

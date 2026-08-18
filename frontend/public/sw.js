@@ -15,7 +15,9 @@ self.addEventListener('push', (event) => {
     body: data.body || 'New seating or rotation update from Admin.',
     icon: '/favicon.svg',
     badge: '/favicon.svg',
-    vibrate: [100, 50, 100],
+    tag: 'rrt-announcement-' + Date.now(),
+    renotify: true,
+    vibrate: [200, 100, 200],
     data: {
       url: data.url || '/',
     },

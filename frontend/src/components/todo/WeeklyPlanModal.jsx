@@ -52,12 +52,12 @@ export default function WeeklyPlanModal({ isOpen, onClose, suggestions = [], onS
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" style={{ animation: 'fadeIn 0.2s ease' }}>
-      <div className="relative bg-white rounded-3xl p-6 shadow-2xl border border-gray-200 max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col" style={{ animation: 'scaleIn 0.2s ease' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+      <div className="relative bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col animate-scale-in">
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors z-10"
+          className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors z-10"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -72,14 +72,14 @@ export default function WeeklyPlanModal({ isOpen, onClose, suggestions = [], onS
             </svg>
           </div>
           <div>
-            <h3 className="text-lg font-bold text-gray-900">Weekly Plan Suggestions</h3>
-            <p className="text-xs text-gray-500">Review, edit, or deselect suggestions before saving</p>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Weekly Plan Suggestions</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Review, edit, or deselect suggestions before saving</p>
           </div>
         </div>
 
         {suggestions.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-400 text-sm">No pending monthly tasks to generate plans from.</p>
+            <p className="text-slate-400 dark:text-slate-500 text-sm">No pending monthly tasks to generate plans from.</p>
           </div>
         ) : (
           <>
@@ -87,8 +87,8 @@ export default function WeeklyPlanModal({ isOpen, onClose, suggestions = [], onS
             <div className="flex-1 overflow-y-auto space-y-4 pr-1">
               {Object.entries(grouped).sort(([a], [b]) => Number(a) - Number(b)).map(([weekNum, tasks]) => (
                 <div key={weekNum}>
-                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center text-[10px] font-bold">
+                  <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-md bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px] font-bold">
                       {weekNum}
                     </span>
                     Week {weekNum}
@@ -99,8 +99,8 @@ export default function WeeklyPlanModal({ isOpen, onClose, suggestions = [], onS
                         key={task.originalIndex}
                         className={`flex items-start gap-3 p-3 rounded-xl border transition-all ${
                           task.selected
-                            ? 'border-indigo-100 bg-indigo-50/30'
-                            : 'border-gray-100 bg-gray-50 opacity-50'
+                            ? 'border-indigo-200 dark:border-indigo-500/30 bg-indigo-50/40 dark:bg-indigo-500/10'
+                            : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 opacity-50'
                         }`}
                       >
                         {/* Checkbox */}
@@ -115,7 +115,7 @@ export default function WeeklyPlanModal({ isOpen, onClose, suggestions = [], onS
                               </svg>
                             </div>
                           ) : (
-                            <div className="w-5 h-5 rounded border-2 border-gray-300" />
+                            <div className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600" />
                           )}
                         </button>
 
@@ -125,15 +125,15 @@ export default function WeeklyPlanModal({ isOpen, onClose, suggestions = [], onS
                             type="text"
                             value={task.title}
                             onChange={(e) => updateTaskTitle(task.originalIndex, e.target.value)}
-                            className="w-full text-sm font-semibold text-gray-800 bg-transparent border-none focus:outline-none focus:ring-0 p-0"
+                            className="w-full text-sm font-semibold text-slate-800 dark:text-slate-200 bg-transparent border-none focus:outline-none focus:ring-0 p-0"
                           />
                           {task.sourceTitle && (
-                            <p className="text-[10px] text-indigo-400 mt-0.5">
+                            <p className="text-[10px] text-indigo-500 dark:text-indigo-400 mt-0.5">
                               From: {task.sourceTitle}
                             </p>
                           )}
                           {task.dayOfWeek && (
-                            <span className="text-[10px] font-medium text-gray-400 capitalize">
+                            <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 capitalize">
                               {task.dayOfWeek}
                             </span>
                           )}
@@ -146,14 +146,14 @@ export default function WeeklyPlanModal({ isOpen, onClose, suggestions = [], onS
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100">
-              <span className="text-xs text-gray-400">
+            <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
+              <span className="text-xs text-slate-400 dark:text-slate-500">
                 {selectedCount} of {selectedTasks.length} selected
               </span>
               <div className="flex gap-2">
                 <button
                   onClick={onClose}
-                  className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   Cancel
                 </button>

@@ -180,14 +180,14 @@ export default function TodoDashboard() {
       {/* Welcome Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             Welcome, {user?.username} 👋
           </h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage your tasks and track your progress</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Manage your tasks and track your progress</p>
         </div>
         <button
           onClick={handleLogout}
-          className="px-4 py-2 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 border border-red-200 transition-all flex items-center gap-2"
+          className="px-4 py-2 rounded-xl text-sm font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 transition-all flex items-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -197,7 +197,7 @@ export default function TodoDashboard() {
       </div>
 
       {/* Section Tabs */}
-      <div className="flex gap-1 bg-white rounded-2xl border border-gray-200 p-1 mb-6 overflow-x-auto">
+      <div className="flex gap-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-1 mb-6 overflow-x-auto shadow-sm">
         {sections.map((s) => (
           <button
             key={s.id}
@@ -205,7 +205,7 @@ export default function TodoDashboard() {
             className={`flex-1 min-w-[80px] py-2.5 px-4 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
               activeSection === s.id
                 ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
             }`}
           >
             <span>{s.icon}</span>
@@ -218,8 +218,8 @@ export default function TodoDashboard() {
       {activeSection === 'overview' && (
         <div className="space-y-6 animate-fade-in">
           {/* Progress Cards */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-            <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-6 flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+            <h2 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-6 flex items-center gap-2">
               <span>📊</span> My Productivity
             </h2>
             <div className="grid grid-cols-3 gap-4 sm:gap-8">
@@ -229,13 +229,13 @@ export default function TodoDashboard() {
             </div>
             <div className="grid grid-cols-3 gap-4 mt-4">
               <div className="text-center">
-                <p className="text-xs text-gray-400">{progress.monthly.completed}/{progress.monthly.total} done</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{progress.monthly.completed}/{progress.monthly.total} done</p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-gray-400">{progress.weekly.completed}/{progress.weekly.total} done</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{progress.weekly.completed}/{progress.weekly.total} done</p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-gray-400">{progress.daily.completed}/{progress.daily.total} done</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{progress.daily.completed}/{progress.daily.total} done</p>
               </div>
             </div>
           </div>
@@ -244,40 +244,40 @@ export default function TodoDashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
               onClick={() => { setTaskModal({ open: true, scope: 'monthly', task: null }); }}
-              className="p-4 rounded-2xl bg-white border border-gray-200 hover:border-emerald-300 hover:shadow-md transition-all text-left group"
+              className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-400 dark:hover:border-emerald-500/40 hover:shadow-md transition-all text-left group"
             >
               <span className="text-2xl">📅</span>
-              <h3 className="text-sm font-bold text-gray-800 mt-2 group-hover:text-emerald-600 transition-colors">Add Monthly Task</h3>
-              <p className="text-xs text-gray-400 mt-0.5">Set your monthly goals</p>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white mt-2 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Add Monthly Task</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Set your monthly goals</p>
             </button>
             <button
               onClick={handleGenerateWeeklyPlan}
-              className="p-4 rounded-2xl bg-white border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all text-left group"
+              className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500/40 hover:shadow-md transition-all text-left group"
             >
               <span className="text-2xl">✨</span>
-              <h3 className="text-sm font-bold text-gray-800 mt-2 group-hover:text-indigo-600 transition-colors">Plan Week</h3>
-              <p className="text-xs text-gray-400 mt-0.5">Auto-generate from monthly</p>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white mt-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">Plan Week</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Auto-generate from monthly</p>
             </button>
             <button
               onClick={() => { setTaskModal({ open: true, scope: 'daily', task: null }); }}
-              className="p-4 rounded-2xl bg-white border border-gray-200 hover:border-amber-300 hover:shadow-md transition-all text-left group"
+              className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-400 dark:hover:border-amber-500/40 hover:shadow-md transition-all text-left group"
             >
               <span className="text-2xl">☀️</span>
-              <h3 className="text-sm font-bold text-gray-800 mt-2 group-hover:text-amber-600 transition-colors">Add Today's Task</h3>
-              <p className="text-xs text-gray-400 mt-0.5">Plan your day</p>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white mt-2 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Add Today's Task</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Plan your day</p>
             </button>
           </div>
 
           {/* Today's Tasks Preview */}
           {dailyTasks.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                <h2 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-2">
                   <span>☀️</span> Today's Agenda
                 </h2>
                 <button
                   onClick={() => setActiveSection('daily')}
-                  className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
+                  className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 transition-colors"
                 >
                   View All →
                 </button>
@@ -293,7 +293,7 @@ export default function TodoDashboard() {
                   />
                 ))}
                 {dailyTasks.length > 4 && (
-                  <p className="text-xs text-gray-400 text-center pt-1">
+                  <p className="text-xs text-slate-400 dark:text-slate-500 text-center pt-1">
                     +{dailyTasks.length - 4} more tasks
                   </p>
                 )}
@@ -306,17 +306,17 @@ export default function TodoDashboard() {
       {/* ═══ MONTHLY ═══ */}
       {activeSection === 'monthly' && (
         <div className="animate-fade-in">
-          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+              <h2 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-2">
                 <span>📅</span> Monthly Agenda
-                <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full text-[10px]">
+                <span className="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/15 px-2 py-0.5 rounded-full text-[10px] font-bold">
                   {progress.monthly.completed}/{progress.monthly.total}
                 </span>
               </h2>
               <button
                 onClick={() => setTaskModal({ open: true, scope: 'monthly', task: null })}
-                className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-600 text-xs font-semibold hover:bg-emerald-100 transition-colors flex items-center gap-1.5"
+                className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-500/25 transition-colors flex items-center gap-1.5"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -326,7 +326,7 @@ export default function TodoDashboard() {
             </div>
 
             {/* Progress bar */}
-            <div className="w-full bg-gray-100 rounded-full h-2 mb-4">
+            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 mb-4">
               <div
                 className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all duration-500"
                 style={{ width: `${progress.monthly.percentage}%` }}
@@ -336,7 +336,7 @@ export default function TodoDashboard() {
             {monthlyTasks.length === 0 ? (
               <div className="text-center py-8">
                 <span className="text-4xl">📝</span>
-                <p className="text-sm text-gray-400 mt-2">No monthly tasks yet. Add your first goal!</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500 mt-2">No monthly tasks yet. Add your first goal!</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -360,24 +360,24 @@ export default function TodoDashboard() {
       {/* ═══ WEEKLY ═══ */}
       {activeSection === 'weekly' && (
         <div className="animate-fade-in space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+              <h2 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-2">
                 <span>📆</span> This Week
-                <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full text-[10px]">
+                <span className="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/15 px-2 py-0.5 rounded-full text-[10px] font-bold">
                   {progress.weekly.completed}/{progress.weekly.total}
                 </span>
               </h2>
               <div className="flex gap-2">
                 <button
                   onClick={handleGenerateWeeklyPlan}
-                  className="px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-600 text-xs font-semibold hover:bg-indigo-100 transition-colors flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-500/25 transition-colors flex items-center gap-1.5"
                 >
                   ✨ Plan Week
                 </button>
                 <button
                   onClick={() => setTaskModal({ open: true, scope: 'weekly', task: null })}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-600 text-xs font-semibold hover:bg-emerald-100 transition-colors flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-500/25 transition-colors flex items-center gap-1.5"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -388,7 +388,7 @@ export default function TodoDashboard() {
             </div>
 
             {/* Progress bar */}
-            <div className="w-full bg-gray-100 rounded-full h-2 mb-4">
+            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 mb-4">
               <div
                 className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2 rounded-full transition-all duration-500"
                 style={{ width: `${progress.weekly.percentage}%` }}
@@ -398,7 +398,7 @@ export default function TodoDashboard() {
             {weeklyTasks.length === 0 ? (
               <div className="text-center py-8">
                 <span className="text-4xl">📋</span>
-                <p className="text-sm text-gray-400 mt-2">No weekly tasks. Generate from monthly or add manually!</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500 mt-2">No weekly tasks. Generate from monthly or add manually!</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -407,7 +407,7 @@ export default function TodoDashboard() {
                   if (tasks.length === 0) return null;
                   return (
                     <div key={day}>
-                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 capitalize flex items-center gap-1.5">
+                      <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 capitalize flex items-center gap-1.5">
                         {day === 'unassigned' ? '📌 Unassigned' : `${day}`}
                       </h3>
                       <div className="space-y-2">
@@ -435,24 +435,24 @@ export default function TodoDashboard() {
       {/* ═══ DAILY ═══ */}
       {activeSection === 'daily' && (
         <div className="animate-fade-in space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+              <h2 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-2">
                 <span>☀️</span> Today's Agenda
-                <span className="text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full text-[10px]">
+                <span className="text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/15 px-2 py-0.5 rounded-full text-[10px] font-bold">
                   {progress.daily.completed}/{progress.daily.total}
                 </span>
               </h2>
               <div className="flex gap-2">
                 <button
                   onClick={() => setAddToDayModal(true)}
-                  className="px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-600 text-xs font-semibold hover:bg-indigo-100 transition-colors flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-500/25 transition-colors flex items-center gap-1.5"
                 >
                   📋 From Existing
                 </button>
                 <button
                   onClick={() => setTaskModal({ open: true, scope: 'daily', task: null })}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-600 text-xs font-semibold hover:bg-emerald-100 transition-colors flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-500/25 transition-colors flex items-center gap-1.5"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -463,7 +463,7 @@ export default function TodoDashboard() {
             </div>
 
             {/* Progress bar */}
-            <div className="w-full bg-gray-100 rounded-full h-2 mb-4">
+            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 mb-4">
               <div
                 className="bg-gradient-to-r from-amber-500 to-orange-500 h-2 rounded-full transition-all duration-500"
                 style={{ width: `${progress.daily.percentage}%` }}
@@ -473,7 +473,7 @@ export default function TodoDashboard() {
             {dailyTasks.length === 0 ? (
               <div className="text-center py-8">
                 <span className="text-4xl">🌅</span>
-                <p className="text-sm text-gray-400 mt-2">No tasks for today. Start planning your day!</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500 mt-2">No tasks for today. Start planning your day!</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -494,25 +494,25 @@ export default function TodoDashboard() {
 
       {/* ═══ Add From Existing Modal ═══ */}
       {addToDayModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" style={{ animation: 'fadeIn 0.2s ease' }}>
-          <div className="relative bg-white rounded-3xl p-6 shadow-2xl border border-gray-200 max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col" style={{ animation: 'scaleIn 0.2s ease' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="relative bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col animate-scale-in">
             <button
               onClick={() => setAddToDayModal(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+              className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
 
-            <h3 className="text-lg font-bold text-gray-900 mb-1">Add to Today</h3>
-            <p className="text-xs text-gray-500 mb-4">Select a task from your monthly or weekly agenda</p>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Add to Today</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Select a task from your monthly or weekly agenda</p>
 
-            <div className="flex-1 overflow-y-auto space-y-4">
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1">
               {/* Monthly tasks */}
               {monthlyTasks.filter((t) => t.status !== 'completed').length > 0 && (
                 <div>
-                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">📅 Monthly Tasks</h4>
+                  <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">📅 Monthly Tasks</h4>
                   <div className="space-y-1.5">
                     {monthlyTasks.filter((t) => t.status !== 'completed').map((task) => (
                       <button
@@ -521,12 +521,12 @@ export default function TodoDashboard() {
                           await handleAddToToday(task);
                           setAddToDayModal(false);
                         }}
-                        className="w-full text-left flex items-center gap-3 p-2.5 rounded-xl border border-gray-100 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all"
+                        className="w-full text-left flex items-center gap-3 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 hover:border-emerald-400 dark:hover:border-emerald-500/40 hover:bg-emerald-50/50 dark:hover:bg-emerald-500/10 transition-all"
                       >
                         <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
-                        <span className="text-sm font-medium text-gray-800 truncate">{task.title}</span>
+                        <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{task.title}</span>
                       </button>
                     ))}
                   </div>
@@ -536,7 +536,7 @@ export default function TodoDashboard() {
               {/* Weekly tasks */}
               {weeklyTasks.filter((t) => t.status !== 'completed').length > 0 && (
                 <div>
-                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">📆 Weekly Tasks</h4>
+                  <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">📆 Weekly Tasks</h4>
                   <div className="space-y-1.5">
                     {weeklyTasks.filter((t) => t.status !== 'completed').map((task) => (
                       <button
@@ -545,12 +545,12 @@ export default function TodoDashboard() {
                           await handleAddToToday(task);
                           setAddToDayModal(false);
                         }}
-                        className="w-full text-left flex items-center gap-3 p-2.5 rounded-xl border border-gray-100 hover:border-indigo-300 hover:bg-indigo-50/50 transition-all"
+                        className="w-full text-left flex items-center gap-3 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500/40 hover:bg-indigo-50/50 dark:hover:bg-indigo-500/10 transition-all"
                       >
                         <svg className="w-4 h-4 text-indigo-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
-                        <span className="text-sm font-medium text-gray-800 truncate">{task.title}</span>
+                        <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{task.title}</span>
                       </button>
                     ))}
                   </div>
@@ -560,7 +560,7 @@ export default function TodoDashboard() {
               {monthlyTasks.filter((t) => t.status !== 'completed').length === 0 &&
                weeklyTasks.filter((t) => t.status !== 'completed').length === 0 && (
                 <div className="text-center py-8">
-                  <p className="text-sm text-gray-400">No available tasks to add.</p>
+                  <p className="text-sm text-slate-400 dark:text-slate-500">No available tasks to add.</p>
                 </div>
               )}
             </div>

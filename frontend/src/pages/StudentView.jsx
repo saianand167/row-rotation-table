@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { useTodo } from '../context/TodoContext';
 import { fetchNavigate } from '../utils/api';
 import SeatingCard from '../components/SeatingCard';
 import CountdownTimer from '../components/CountdownTimer';
@@ -14,6 +16,7 @@ const NAV_BUTTONS = [
 
 export default function StudentView() {
   const { rotationData: data, loading, error, refetch } = useApp();
+  const { isAuthenticated: isTodoAuth, user: todoUser } = useTodo();
   const [activeOffset, setActiveOffset] = useState(0);
   const [navData, setNavData] = useState(null);
   const [navLoading, setNavLoading] = useState(false);
@@ -291,8 +294,42 @@ export default function StudentView() {
         </div>
       )}
 
-      {/* Countdown Timer (Today view) */}
-      {activeOffset === 0 && !isHoliday && <CountdownTimer onZero={refetch} />}
+      {/* Personal Tasks & To-Do Quick Access Banner */}
+      <div className="rounded-3xl bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10 dark:from-emerald-500/5 dark:via-teal-500/5 dark:to-cyan-500/5 border border-emerald-500/20 dark:border-emerald-500/15 p-5 sm:p-6 shadow-md transition-all hover:shadow-lg">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/25 flex-shrink-0">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="text-base font-bold text-slate-900 dark:text-white">
+                  Student To-Do & Task Planner
+                </h4>
+                {isTodoAuth && (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
+                    Logged in as {todoUser?.username}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-0.5">
+                Organize your study goals, daily tasks, and weekly schedules alongside seating rotation.
+              </p>
+            </div>
+          </div>
+          <Link
+            to={isTodoAuth ? '/todo/dashboard' : '/todo'}
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm font-semibold text-center shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 flex-shrink-0"
+          >
+            <span>{isTodoAuth ? 'Open My Tasks' : 'Access To-Do List'}</span>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </Link>
+        </div>
+      </div>
 
       {/* Footer */}
       <footer className="text-center pt-6 pb-6 border-t border-slate-200/60 dark:border-slate-800/60">
