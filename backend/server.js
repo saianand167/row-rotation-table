@@ -16,9 +16,24 @@ const authRoutes = require('./routes/auth');
 const todoRoutes = require('./routes/todos');
 const criticalAdminRoutes = require('./routes/criticalAdmin');
 
+// AI Super App Routes
+const aiRoutes = require('./routes/ai');
+const documentRoutes = require('./routes/documents');
+const tempFileRoutes = require('./routes/temporaryFiles');
+const logRoutes = require('./routes/logs');
+
+// Ensure upload directories exist
+const fs = require('fs');
+const path = require('path');
+const docDir = path.resolve(__dirname, 'uploads/documents');
+const tempDir = path.resolve(__dirname, 'uploads/temp');
+if (!fs.existsSync(docDir)) fs.mkdirSync(docDir, { recursive: true });
+if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
 // Models for initialization
 const CriticalAdmin = require('./models/CriticalAdmin');
 const Visitor = require('./models/Visitor');
+const AISession = require('./models/AISession');
 
 const app = express();
 const server = http.createServer(app);
@@ -50,7 +65,8 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: '35mb' }));
+app.use(express.urlencoded({ extended: true, limit: '35mb' }));
 app.use(cookieParser());
 
 // IP Visitor Tracking Middleware
@@ -85,13 +101,42 @@ app.use('/api/auth', authRoutes);
 app.use('/api/todos', todoRoutes);
 app.use('/api/critical-admin', criticalAdminRoutes);
 
+// ─── Generative AI Super App Routes ──────────────────────
+app.use('/api/ai', aiRoutes);
+app.use('/api/documents', documentRoutes);
+app.use('/api/temp', tempFileRoutes);
+app.use('/api/logs', logRoutes);
+
+// Periodic cleaner for orphaned temporary session files older than 3 hours
+setInterval(() => {
+  try {
+    if (fs.existsSync(tempDir)) {
+      const now = Date.now();
+      const files = fs.readdirSync(tempDir);
+      for (const file of files) {
+        const filePath = path.join(tempDir, file);
+        const stats = fs.statSync(filePath);
+        if (now - stats.mtimeMs > 3 * 60 * 60 * 1000) {
+          fs.unlinkSync(filePath);
+          console.log(`🧹 Cleaned expired temp file: ${file}`);
+        }
+      }
+    }
+  } catch (e) {}
+}, 30 * 60 * 1000);
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Connect to MongoDB and start server
-async function start() {
+// Start HTTP Server immediately
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 RRT & Generative AI Super App Backend running on http://localhost:${PORT}`);
+});
+
+// Connect to MongoDB and initialize background services
+async function initDatabase() {
   let connected = false;
 
   // 1. Try remote MongoDB URI if explicitly provided in environment
@@ -112,8 +157,7 @@ async function start() {
       console.log('✅ Connected to Local MongoDB');
       connected = true;
     } catch (err) {
-      // 3. Fallback to embedded In-Memory MongoDB automatically
-      console.log('ℹ️ Local MongoDB server not detected, starting embedded in-memory MongoDB...');
+      console.log('ℹ️ Local MongoDB server not detected, attempting embedded in-memory MongoDB...');
       try {
         const { MongoMemoryServer } = require('mongodb-memory-server');
         const mongod = await MongoMemoryServer.create();
@@ -122,24 +166,15 @@ async function start() {
         console.log('✅ Connected to Embedded In-Memory MongoDB');
         connected = true;
       } catch (memErr) {
-        console.error('❌ Failed to start embedded MongoDB:', memErr.message);
+        console.warn('⚠️ Embedded MongoDB skipped:', memErr.message);
       }
     }
   }
 
-  if (!connected) {
-    console.error('❌ Failed to connect to any MongoDB database instance.');
-    process.exit(1);
-  }
-
-  await pushNotification.initVapidKeys();
-
-  // Initialize Critical Admin account (from env var) on first boot
-  await CriticalAdmin.getAdmin();
-
-  server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 RRT Backend running with WebSockets on http://0.0.0.0:${PORT} (listening on all network interfaces)`);
-  });
+  try {
+    await pushNotification.initVapidKeys();
+    await CriticalAdmin.getAdmin();
+  } catch (e) {}
 }
 
-start();
+initDatabase();

@@ -122,12 +122,27 @@ export async function deleteWeeklyTask(id) {
 }
 
 export async function generateWeeklyPlan() {
-  const { data } = await todoApi.post('/todos/weekly/generate');
+  const { data } = await todoApi.post('/todos/generate-weekly-plan');
   return data;
 }
 
 export async function saveGeneratedWeeklyTasks(tasks) {
-  const { data } = await todoApi.post('/todos/weekly/save-generated', { tasks });
+  const { data } = await todoApi.post('/todos/save-generated-weekly-tasks', { tasks });
+  return data;
+}
+
+export async function generateAiPlanAgent(prompt) {
+  const { data } = await todoApi.post('/todos/ai-plan-agent', { prompt });
+  return data;
+}
+
+export async function batchCreateTasks(tasks) {
+  const { data } = await todoApi.post('/todos/batch-create', { tasks });
+  return data;
+}
+
+export async function pullTodayFromWeekly() {
+  const { data } = await todoApi.post('/todos/pull-today-from-weekly');
   return data;
 }
 

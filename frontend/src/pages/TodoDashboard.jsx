@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTodo } from '../context/TodoContext';
 import {
@@ -6,6 +6,7 @@ import {
   getWeeklyTasks, createWeeklyTask, updateWeeklyTask, deleteWeeklyTask,
   getDailyTasks, createDailyTask, updateDailyTask, deleteDailyTask,
   addExistingToDaily, getProgress, generateWeeklyPlan, saveGeneratedWeeklyTasks,
+  generateAiPlanAgent, batchCreateTasks,
 } from '../utils/todoApi';
 import ProgressRing from '../components/todo/ProgressRing';
 import TaskCard from '../components/todo/TaskCard';
@@ -23,6 +24,13 @@ export default function TodoDashboard() {
   const [dailyTasks, setDailyTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // AI Schedule & Task Planner Agent State
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiPlanning, setAiPlanning] = useState(false);
+  const [aiGeneratedTasks, setAiGeneratedTasks] = useState([]);
+  const [isAiListening, setIsAiListening] = useState(false);
+  const aiRecognitionRef = useRef(null);
+
   // Modal state
   const [taskModal, setTaskModal] = useState({ open: false, scope: 'monthly', task: null });
   const [weeklyPlanModal, setWeeklyPlanModal] = useState({ open: false, suggestions: [] });
@@ -30,6 +38,190 @@ export default function TodoDashboard() {
 
   // Active section
   const [activeSection, setActiveSection] = useState('overview');
+  const [liveAiSpeechStream, setLiveAiSpeechStream] = useState('');
+  const aiAccumulatedRef = useRef('');
+
+  // Speech Recognition for AI Task Planner (Clean, Non-Blocking & Robust)
+  const startAiListening = async () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      showToast('Speech recognition is not supported in this browser. Please use Chrome or Edge.', 'error');
+      return;
+    }
+
+    if (isAiListening) {
+      stopAiListening();
+      return;
+    }
+
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => {});
+      }
+    } catch (e) {}
+
+    try {
+      const rec = new SpeechRecognition();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = 'en-US';
+
+      aiAccumulatedRef.current = aiPrompt ? aiPrompt.trim() + ' ' : '';
+      setLiveAiSpeechStream('');
+
+      rec.onstart = () => {
+        setIsAiListening(true);
+      };
+
+      rec.onresult = (e) => {
+        let finalChunk = '';
+        let interimChunk = '';
+        for (let i = e.resultIndex; i < e.results.length; ++i) {
+          const item = e.results[i];
+          if (item.isFinal) {
+            finalChunk += item[0].transcript + ' ';
+          } else {
+            interimChunk += item[0].transcript;
+          }
+        }
+        if (finalChunk) {
+          aiAccumulatedRef.current = (aiAccumulatedRef.current + ' ' + finalChunk).replace(/\s+/g, ' ').trim() + ' ';
+        }
+        const fullSpoken = (aiAccumulatedRef.current + ' ' + interimChunk).replace(/\s+/g, ' ').trim();
+        setLiveAiSpeechStream(fullSpoken);
+        setAiPrompt(fullSpoken);
+      };
+
+      rec.onerror = (err) => {
+        console.warn('Speech recognition error:', err.error);
+        setIsAiListening(false);
+      };
+
+      rec.onend = () => {
+        setIsAiListening(false);
+      };
+
+      rec.start();
+      aiRecognitionRef.current = rec;
+    } catch (e) {
+      console.warn('Failed to start speech:', e);
+      setIsAiListening(false);
+    }
+  };
+
+  const stopAiListening = () => {
+    if (aiRecognitionRef.current) {
+      try { aiRecognitionRef.current.stop(); } catch (e) {}
+      aiRecognitionRef.current = null;
+    }
+    setIsAiListening(false);
+    const fullText = (aiAccumulatedRef.current + ' ' + liveAiSpeechStream).replace(/\s+/g, ' ').trim() || aiPrompt.trim();
+    if (fullText) {
+      setAiPrompt(fullText);
+    }
+    setLiveAiSpeechStream('');
+  };
+
+  const stopAiListeningAndPlan = () => {
+    if (aiRecognitionRef.current) {
+      try { aiRecognitionRef.current.stop(); } catch (e) {}
+      aiRecognitionRef.current = null;
+    }
+    setIsAiListening(false);
+    const fullText = (aiAccumulatedRef.current + ' ' + liveAiSpeechStream).replace(/\s+/g, ' ').trim() || aiPrompt.trim();
+    if (fullText) {
+      setAiPrompt(fullText);
+      handleRunAiPlanner(fullText);
+    }
+    setLiveAiSpeechStream('');
+  };
+
+  const handleRunAiPlanner = async (promptOverride = null) => {
+    const query = (promptOverride || aiPrompt || liveAiSpeechStream || '').trim();
+    if (!query) {
+      showToast('Please type or speak your schedule/goals first (e.g. "DSA exam on Friday, OS Lab on Wednesday").', 'info');
+      return;
+    }
+    if (isAiListening) {
+      if (aiRecognitionRef.current) {
+        try { aiRecognitionRef.current.stop(); } catch (e) {}
+        aiRecognitionRef.current = null;
+      }
+      setIsAiListening(false);
+    }
+    setAiPlanning(true);
+    try {
+      const res = await generateAiPlanAgent(query);
+      if (res.tasks && res.tasks.length > 0) {
+        setAiGeneratedTasks(res.tasks);
+        showToast(`AI Agent generated ${res.tasks.length} actionable tasks!`, 'success');
+      } else {
+        showToast('No tasks generated. Try adding more schedule details.', 'error');
+      }
+    } catch (err) {
+      console.error('Plan generation error:', err);
+      showToast('Failed to generate AI plan. Please check backend connection.', 'error');
+    } finally {
+      setAiPlanning(false);
+    }
+  };
+
+  const handleSyncTodayFromWeekly = async () => {
+    try {
+      const res = await pullTodayFromWeekly();
+      if (res.pulledCount > 0) {
+        showToast(res.message, 'success');
+        fetchAllData();
+      } else {
+        showToast(res.message || 'No scheduled tasks found for today.', 'info');
+      }
+    } catch (err) {
+      showToast('Failed to sync today tasks.', 'error');
+    }
+  };
+
+  const handleAddManualTaskToAiPlan = () => {
+    setAiGeneratedTasks(prev => [
+      ...prev,
+      {
+        title: 'New Custom Task',
+        description: 'Manual task description',
+        scope: 'weekly',
+        dayOfWeek: 'monday',
+        priority: 'medium',
+        addToToday: false,
+        selected: true,
+      }
+    ]);
+  };
+
+  const updateAiTask = (index, field, value) => {
+    setAiGeneratedTasks(prev => prev.map((t, i) => i === index ? { ...t, [field]: value } : t));
+  };
+
+  const removeAiTask = (index) => {
+    setAiGeneratedTasks(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSaveAiTasks = async () => {
+    const selected = aiGeneratedTasks.filter(t => t.selected !== false);
+    if (selected.length === 0) {
+      showToast('Please select at least one task to save.', 'error');
+      return;
+    }
+    setAiPlanning(true);
+    try {
+      const res = await batchCreateTasks(selected);
+      showToast(res.message || `Saved ${selected.length} tasks to your board!`, 'success');
+      setAiGeneratedTasks([]);
+      setAiPrompt('');
+      fetchAllData();
+    } catch (err) {
+      showToast('Failed to save tasks.', 'error');
+    } finally {
+      setAiPlanning(false);
+    }
+  };
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -176,7 +368,7 @@ export default function TodoDashboard() {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto animate-fade-in-up">
+    <div className="max-w-6xl xl:max-w-7xl w-full mx-auto animate-fade-in-up">
       {/* Welcome Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
@@ -217,6 +409,244 @@ export default function TodoDashboard() {
       {/* ═══ OVERVIEW ═══ */}
       {activeSection === 'overview' && (
         <div className="space-y-6 animate-fade-in">
+          {/* AI Task & Schedule Planner Agent Card */}
+          <div className="p-6 rounded-3xl bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-teal-500/10 border border-indigo-500/20 shadow-md space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white text-lg shadow-md shadow-indigo-500/25">
+                  ✨
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    AI Schedule & Task Planner Agent
+                    <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[10px] font-extrabold uppercase tracking-wider">
+                      Voice & Text
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Say or type your weekly schedule, exams, or goals to generate structured tasks automatically.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={isAiListening ? stopAiListening : startAiListening}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  isAiListening
+                    ? 'bg-rose-500 text-white animate-pulse'
+                    : 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100'
+                }`}
+              >
+                <span>{isAiListening ? '⏹️ Stop' : '🎤 Speak Plan'}</span>
+              </button>
+            </div>
+
+            {/* Live Voice Stream Equalizer Bar when listening */}
+            {isAiListening && (
+              <div className="p-4 rounded-2xl bg-slate-900 border border-indigo-500/40 text-white shadow-xl space-y-3 animate-slide-down">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+                    <span className="text-xs font-bold text-rose-400">
+                      🟢 LIVE LISTENING (EN)... SPEAK YOUR SCHEDULE FREELY
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={stopAiListening}
+                      className="px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 text-xs font-bold transition-all border border-indigo-500/30 cursor-pointer"
+                      title="Stop recording and keep text in the input box so you can edit before planning"
+                    >
+                      ⏹️ Stop & Edit Text
+                    </button>
+                    <button
+                      onClick={stopAiListeningAndPlan}
+                      className="px-3 py-1 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-xs font-bold transition-all shadow-md cursor-pointer"
+                      title="Generate AI plan immediately from voice"
+                    >
+                      ⚡ Plan Now
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sound waves equalizer */}
+                <div className="flex justify-center items-center gap-1.5 h-8 py-1">
+                  <span className="w-1.5 bg-cyan-400 rounded-full animate-wave-1" />
+                  <span className="w-1.5 bg-teal-400 rounded-full animate-wave-2" />
+                  <span className="w-1.5 bg-rose-500 rounded-full animate-wave-3" />
+                  <span className="w-1.5 bg-indigo-400 rounded-full animate-wave-4" />
+                  <span className="w-1.5 bg-purple-400 rounded-full animate-wave-5" />
+                  <span className="w-1.5 bg-rose-500 rounded-full animate-wave-2" />
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-indigo-300 min-h-[40px] flex items-center">
+                  {liveAiSpeechStream || aiPrompt ? (
+                    <span>
+                      "{liveAiSpeechStream || aiPrompt}"
+                      <span className="inline-block w-2 h-3.5 bg-indigo-400 ml-1 animate-pulse" />
+                    </span>
+                  ) : (
+                    <span className="text-slate-500 italic">
+                      Listening... Speak your exams, labs, or weekly milestones...
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleRunAiPlanner(); }}
+                placeholder="e.g. 'Plan my week with DSA exam on Friday, OS Lab on Wednesday, and DBMS review on Monday'..."
+                className="flex-1 px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <button
+                onClick={handleRunAiPlanner}
+                disabled={aiPlanning || !aiPrompt.trim()}
+                className="px-5 py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold text-xs shadow-md shadow-indigo-500/20 hover:scale-105 active:scale-95 disabled:opacity-40 transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                {aiPlanning ? 'Planning...' : '⚡ Generate Plan'}
+              </button>
+            </div>
+
+            {/* Generated AI Tasks Preview & Interactive Editor */}
+            {aiGeneratedTasks.length > 0 && (
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800/60 space-y-4 animate-scale-in">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+                  <div>
+                    <div className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <span>⚡</span> AI Decomposed Plan ({aiGeneratedTasks.filter(t => t.selected !== false).length}/{aiGeneratedTasks.length} selected):
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Decomposed into Monthly Goal, Weekly Schedule, and Today's Agenda. Review and customize before saving.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleAddManualTaskToAiPlan}
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer"
+                    >
+                      + Add Manual Task
+                    </button>
+                    <button
+                      onClick={handleSaveAiTasks}
+                      disabled={aiPlanning}
+                      className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
+                    >
+                      ✅ Save All to Board
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                  {aiGeneratedTasks.map((t, idx) => (
+                    <div
+                      key={idx}
+                      className={`p-3 rounded-2xl border transition-all ${
+                        t.selected === false
+                          ? 'bg-slate-50/50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 opacity-60'
+                          : t.scope === 'monthly'
+                          ? 'bg-emerald-500/5 dark:bg-emerald-950/20 border-emerald-500/30'
+                          : t.addToToday
+                          ? 'bg-amber-500/5 dark:bg-amber-950/20 border-amber-500/30'
+                          : 'bg-indigo-500/5 dark:bg-indigo-950/20 border-indigo-500/20'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={t.selected !== false}
+                          onChange={(e) => updateAiTask(idx, 'selected', e.target.checked)}
+                          className="mt-1 w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+
+                        <div className="flex-1 space-y-2">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                            <input
+                              type="text"
+                              value={t.title}
+                              onChange={(e) => updateAiTask(idx, 'title', e.target.value)}
+                              className="flex-1 font-bold text-xs sm:text-sm text-slate-800 dark:text-white bg-transparent border-b border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 focus:outline-none"
+                            />
+
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {/* Scope Selector */}
+                              <select
+                                value={t.scope || 'weekly'}
+                                onChange={(e) => updateAiTask(idx, 'scope', e.target.value)}
+                                className="text-[10px] font-bold uppercase rounded-lg px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                              >
+                                <option value="monthly">📅 Monthly</option>
+                                <option value="weekly">🗓️ Weekly</option>
+                                <option value="daily">☀️ Daily</option>
+                              </select>
+
+                              {/* Day Selector (for weekly) */}
+                              {t.scope === 'weekly' && (
+                                <select
+                                  value={t.dayOfWeek || 'monday'}
+                                  onChange={(e) => updateAiTask(idx, 'dayOfWeek', e.target.value)}
+                                  className="text-[10px] font-bold uppercase rounded-lg px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800"
+                                >
+                                  <option value="monday">Mon</option>
+                                  <option value="tuesday">Tue</option>
+                                  <option value="wednesday">Wed</option>
+                                  <option value="thursday">Thu</option>
+                                  <option value="friday">Fri</option>
+                                  <option value="saturday">Sat</option>
+                                  <option value="sunday">Sun</option>
+                                </select>
+                              )}
+
+                              {/* Priority Selector */}
+                              <select
+                                value={t.priority || 'medium'}
+                                onChange={(e) => updateAiTask(idx, 'priority', e.target.value)}
+                                className="text-[10px] font-bold uppercase rounded-lg px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                              >
+                                <option value="high">🔴 High</option>
+                                <option value="medium">🟡 Med</option>
+                                <option value="low">🟢 Low</option>
+                              </select>
+
+                              {/* Delete button */}
+                              <button
+                                onClick={() => removeAiTask(idx)}
+                                className="text-slate-400 hover:text-rose-500 p-0.5 text-xs transition-colors cursor-pointer"
+                                title="Remove task"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+
+                          <input
+                            type="text"
+                            value={t.description || ''}
+                            onChange={(e) => updateAiTask(idx, 'description', e.target.value)}
+                            placeholder="Optional description..."
+                            className="w-full text-xs text-slate-500 dark:text-slate-400 bg-transparent border-b border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 focus:outline-none"
+                          />
+
+                          {/* Today's badge */}
+                          {t.addToToday && (
+                            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-extrabold">
+                              <span>☀️</span> Assigned to Today's Agenda automatically
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Progress Cards */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
             <h2 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-6 flex items-center gap-2">
@@ -443,16 +873,23 @@ export default function TodoDashboard() {
                   {progress.daily.completed}/{progress.daily.total}
                 </span>
               </h2>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={handleSyncTodayFromWeekly}
+                  className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-bold hover:bg-amber-500/20 transition-colors flex items-center gap-1.5 cursor-pointer"
+                  title="Auto-pull today's weekday task from your weekly plan"
+                >
+                  <span>☀️ Sync Today from Weekly</span>
+                </button>
                 <button
                   onClick={() => setAddToDayModal(true)}
-                  className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-500/25 transition-colors flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-500/25 transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
                   📋 From Existing
                 </button>
                 <button
                   onClick={() => setTaskModal({ open: true, scope: 'daily', task: null })}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-500/25 transition-colors flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-500/25 transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />

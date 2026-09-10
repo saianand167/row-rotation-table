@@ -520,4 +520,228 @@ router.get('/progress', async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════
+//  AI AGENT TASK & SCHEDULE PLANNER
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Helper to get current weekday name ('monday', 'tuesday', etc.)
+ */
+function getTodayDayName() {
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  return days[new Date().getDay()];
+}
+
+/**
+ * POST /api/todos/ai-plan-agent
+ * Decomposes natural input into Monthly goals, Weekly day-by-day milestones,
+ * and automatically assigns today's task to Today's Agenda.
+ */
+router.post('/ai-plan-agent', async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt || !prompt.trim()) {
+      return res.status(400).json({ error: 'Plan prompt is required.' });
+    }
+
+    const aiService = require('../services/aiService');
+    const todayStr = getTodayStr();
+    const todayDayName = getTodayDayName();
+
+    const systemInstruction = `You are an expert AI Study & Task Planner Agent (LangGraph/LangChain workflow).
+Analyze the user's input and generate a complete, structured 3-tier action plan:
+1. One high-level **Monthly Goal** (scope: "monthly")
+2. Day-by-day **Weekly Tasks** for Monday, Tuesday, Wednesday, Thursday, Friday, and Saturday (scope: "weekly", each with appropriate dayOfWeek)
+3. Clearly mark the task that matches TODAY (${todayDayName}, ${todayStr}) with "addToToday": true.
+
+Return a STRICT JSON array of 5-8 tasks with this exact format:
+[
+  {
+    "title": "Clear actionable title",
+    "description": "Short explanation of goal",
+    "scope": "monthly" | "weekly" | "daily",
+    "priority": "high" | "medium" | "low",
+    "dayOfWeek": "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday",
+    "addToToday": true | false
+  }
+]
+Do not include any conversational markdown or text outside the JSON array.`;
+
+    const userMsg = `User Schedule / Goals: "${prompt.trim()}". Today is ${todayDayName.toUpperCase()} (${todayStr}). Generate 1 monthly goal and day-by-day weekly tasks.`;
+    const rawAnswer = await aiService.callGroqLLM(
+      [{ role: 'user', content: userMsg }],
+      systemInstruction
+    );
+
+    let tasks = [];
+    try {
+      const jsonMatch = rawAnswer.match(/\[\s*\{[\s\S]*\}\s*\]/);
+      if (jsonMatch) {
+        tasks = JSON.parse(jsonMatch[0]);
+      } else {
+        tasks = JSON.parse(rawAnswer);
+      }
+    } catch (e) {
+      tasks = [
+        { title: `Monthly Milestone: Master ${prompt.slice(0, 30)}`, description: 'Overall monthly objective', scope: 'monthly', priority: 'high' },
+        { title: 'Monday: Theory & Concepts Review', description: 'Study fundamentals', scope: 'weekly', priority: 'medium', dayOfWeek: 'monday', addToToday: todayDayName === 'monday' },
+        { title: 'Tuesday: Core Topic Deep-Dive', description: 'In-depth notes', scope: 'weekly', priority: 'high', dayOfWeek: 'tuesday', addToToday: todayDayName === 'tuesday' },
+        { title: 'Wednesday: Practical Lab & Problem Solving', description: 'Hands-on practice', scope: 'weekly', priority: 'high', dayOfWeek: 'wednesday', addToToday: todayDayName === 'wednesday' },
+        { title: 'Thursday: Assignment & Project Progress', description: 'Milestone deliverables', scope: 'weekly', priority: 'medium', dayOfWeek: 'thursday', addToToday: todayDayName === 'thursday' },
+        { title: 'Friday: Weekly Assessment & Revision', description: 'Mock tests and review', scope: 'weekly', priority: 'high', dayOfWeek: 'friday', addToToday: todayDayName === 'friday' },
+      ];
+    }
+
+    // Ensure at least one task is designated for today
+    let hasToday = tasks.some(t => t.addToToday || t.dayOfWeek === todayDayName);
+    if (!hasToday && tasks.length > 0) {
+      tasks[0].addToToday = true;
+    }
+
+    res.json({
+      success: true,
+      tasks,
+      todayDayName,
+      todayDate: todayStr,
+      prompt,
+      message: `AI Agent decomposed plan into ${tasks.length} Monthly, Weekly, and Daily tasks!`
+    });
+  } catch (err) {
+    console.error('AI Plan Agent error:', err);
+    res.status(500).json({ error: 'Failed to generate AI plan.', details: err.message });
+  }
+});
+
+/**
+ * POST /api/todos/batch-create
+ * Save multiple AI-generated tasks in 1 click (Monthly, Weekly, and Today's Daily task)
+ */
+router.post('/batch-create', async (req, res) => {
+  try {
+    const { tasks = [] } = req.body;
+    if (!Array.isArray(tasks) || tasks.length === 0) {
+      return res.status(400).json({ error: 'Tasks array is required.' });
+    }
+
+    const createdTasks = [];
+    const todayStr = getTodayStr();
+    const todayDayName = getTodayDayName();
+    const curWeekNum = getCurrentWeekNumber();
+
+    for (const item of tasks) {
+      if (!item.title || !item.title.trim()) continue;
+      const scope = item.scope || 'weekly';
+
+      // 1. Create the primary task (Monthly, Weekly, or Daily)
+      const created = await Task.create({
+        userId: req.todoUser._id,
+        title: item.title.trim(),
+        description: item.description?.trim() || '',
+        scope,
+        priority: item.priority || 'medium',
+        dayOfWeek: item.dayOfWeek || (scope === 'weekly' ? 'monday' : undefined),
+        date: scope === 'daily' ? todayStr : undefined,
+        weekNumber: curWeekNum,
+        status: 'pending'
+      });
+      createdTasks.push(created);
+
+      // 2. If this weekly task matches TODAY or is flagged addToToday, automatically also create in today's agenda!
+      if (scope === 'weekly' && (item.addToToday || item.dayOfWeek === todayDayName)) {
+        const existingDaily = await Task.findOne({
+          userId: req.todoUser._id,
+          scope: 'daily',
+          sourceTaskId: created._id,
+          date: todayStr,
+        });
+
+        if (!existingDaily) {
+          const dailyCreated = await Task.create({
+            userId: req.todoUser._id,
+            title: created.title,
+            description: created.description,
+            scope: 'daily',
+            priority: created.priority,
+            date: todayStr,
+            sourceTaskId: created._id,
+            status: 'pending'
+          });
+          createdTasks.push(dailyCreated);
+        }
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      createdCount: createdTasks.length,
+      tasks: createdTasks,
+      message: `Saved ${createdTasks.length} tasks (including Today's Agenda) to your board!`
+    });
+  } catch (err) {
+    console.error('Batch create error:', err);
+    res.status(500).json({ error: 'Failed to batch create tasks.' });
+  }
+});
+
+/**
+ * POST /api/todos/pull-today-from-weekly
+ * Automatically pulls the task for today's weekday from the weekly plan into today's agenda
+ */
+router.post('/pull-today-from-weekly', async (req, res) => {
+  try {
+    const todayStr = getTodayStr();
+    const todayDayName = getTodayDayName();
+    const curWeekNum = getCurrentWeekNumber();
+
+    // Find weekly tasks for today's weekday
+    const weeklyTasksForToday = await Task.find({
+      userId: req.todoUser._id,
+      scope: 'weekly',
+      dayOfWeek: todayDayName,
+      status: { $ne: 'completed' },
+    });
+
+    if (weeklyTasksForToday.length === 0) {
+      return res.json({
+        success: true,
+        pulledCount: 0,
+        message: `No scheduled weekly tasks found for today (${todayDayName.toUpperCase()}).`
+      });
+    }
+
+    const added = [];
+    for (const wTask of weeklyTasksForToday) {
+      const existing = await Task.findOne({
+        userId: req.todoUser._id,
+        scope: 'daily',
+        sourceTaskId: wTask._id,
+        date: todayStr,
+      });
+
+      if (!existing) {
+        const daily = await Task.create({
+          userId: req.todoUser._id,
+          title: wTask.title,
+          description: wTask.description,
+          scope: 'daily',
+          priority: wTask.priority,
+          date: todayStr,
+          sourceTaskId: wTask._id,
+          status: 'pending'
+        });
+        added.push(daily);
+      }
+    }
+
+    res.json({
+      success: true,
+      pulledCount: added.length,
+      tasks: added,
+      message: `Pulled ${added.length} tasks scheduled for ${todayDayName.toUpperCase()} into Today's Agenda!`
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to pull today tasks from weekly plan.' });
+  }
+});
+
 module.exports = router;

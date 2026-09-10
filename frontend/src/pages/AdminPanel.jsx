@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
 import AdminLogin from '../components/AdminLogin';
 import { useApp } from '../context/AppContext';
 import {
@@ -27,6 +28,15 @@ export default function AdminPanel() {
   const [editDay, setEditDay] = useState(1);
   const [editArrangement, setEditArrangement] = useState(['G1', 'G2', 'G3', 'G4', 'B1', 'B2']);
   const [showEditor, setShowEditor] = useState(false);
+
+  // System Logs & Health Telemetry State
+  const [logs, setLogs] = useState([]);
+  const [logFilterModule, setLogFilterModule] = useState('All');
+  const [logFilterStatus, setLogFilterStatus] = useState('All');
+  const [logSearch, setLogSearch] = useState('');
+  const [systemHealth, setSystemHealth] = useState(null);
+  const [telemetryStats, setTelemetryStats] = useState(null);
+  const [logsLoading, setLogsLoading] = useState(false);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -68,12 +78,31 @@ export default function AdminPanel() {
     }
   }, [pin, auth]);
 
+  const loadLogs = useCallback(async () => {
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    setLogsLoading(true);
+    try {
+      const [logRes, statRes, healthRes] = await Promise.all([
+        axios.get(`${API_BASE}/logs?module=${logFilterModule}&status=${logFilterStatus}&search=${encodeURIComponent(logSearch)}&limit=30`),
+        axios.get(`${API_BASE}/logs/stats`),
+        axios.get(`${API_BASE}/logs/health`),
+      ]);
+      if (logRes.data.success) setLogs(logRes.data.logs || []);
+      if (statRes.data.success) setTelemetryStats(statRes.data.stats);
+      if (healthRes.data.success) setSystemHealth(healthRes.data.health);
+    } catch (e) {}
+    finally {
+      setLogsLoading(false);
+    }
+  }, [logFilterModule, logFilterStatus, logSearch]);
+
   useEffect(() => {
     if (pin) {
       loadState();
       loadSeating();
+      loadLogs();
     }
-  }, [pin, loadState, loadSeating]);
+  }, [pin, loadState, loadSeating, loadLogs]);
 
   useEffect(() => {
     if (allSeating && allSeating[editDay]) {
@@ -685,8 +714,155 @@ export default function AdminPanel() {
             </div>
           </div>
         )}
-      </div>
+        {/* ─── 6. System Health & Infrastructure Telemetry ────── */}
+        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md">
+                🏥
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 dark:text-white text-base">System Health & AI Infrastructure</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Live service telemetry and database status</p>
+              </div>
+            </div>
+            <button
+              onClick={loadLogs}
+              className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            >
+              🔄 Refresh
+            </button>
+          </div>
 
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {[
+              { name: 'Database', status: systemHealth?.services?.database?.status || 'Healthy', icon: '🗄️' },
+              { name: 'AI Engine', status: systemHealth?.services?.aiEngine?.status || 'Online', icon: '🤖' },
+              { name: 'Knowledge RAG', status: systemHealth?.services?.knowledgeBase?.status || 'Healthy', icon: '📄' },
+              { name: 'Temp Storage', status: systemHealth?.services?.tempStorage?.status || 'Healthy', icon: '🧹' },
+              { name: 'Voice Engine', status: systemHealth?.services?.voiceEngine?.status || 'Online', icon: '🎙️' },
+              { name: 'SQL Guard', status: systemHealth?.services?.sqlEngine?.status || 'Healthy', icon: '🛡️' },
+            ].map((svc, i) => (
+              <div key={i} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 text-center space-y-1">
+                <div className="text-lg">{svc.icon}</div>
+                <div className="text-xs font-bold text-slate-800 dark:text-slate-200">{svc.name}</div>
+                <div className="text-[10px] font-bold text-emerald-500">{svc.status}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ─── 7. System Activity & Audit Log Viewer ────────── */}
+        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-md">
+                📜
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 dark:text-white text-base">System Activity & Audit Logs</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Searchable immutable activity trail for compliance</p>
+              </div>
+            </div>
+
+            {/* Stats Summary */}
+            {telemetryStats && (
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                <span className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800">
+                  AI Requests: <strong>{telemetryStats.aiRequests || 0}</strong>
+                </span>
+                <span className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800">
+                  Documents: <strong>{telemetryStats.documentsCount || 0}</strong>
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Filter Bar */}
+          <div className="flex flex-col sm:flex-row gap-2.5">
+            <input
+              type="text"
+              value={logSearch}
+              onChange={(e) => setLogSearch(e.target.value)}
+              placeholder="Search logs by action, module, or description..."
+              className="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none"
+            />
+
+            <select
+              value={logFilterModule}
+              onChange={(e) => setLogFilterModule(e.target.value)}
+              className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none"
+            >
+              <option value="All">All Modules</option>
+              <option value="AI Assistant">AI Assistant</option>
+              <option value="Documents">Documents</option>
+              <option value="Database AI">Database AI</option>
+              <option value="Data Analytics">Data Analytics</option>
+              <option value="Vision AI">Vision AI</option>
+              <option value="Voice AI">Voice AI</option>
+              <option value="Row Rotation">Row Rotation</option>
+              <option value="System">System</option>
+            </select>
+
+            <select
+              value={logFilterStatus}
+              onChange={(e) => setLogFilterStatus(e.target.value)}
+              className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none"
+            >
+              <option value="All">All Statuses</option>
+              <option value="SUCCESS">SUCCESS</option>
+              <option value="INFO">INFO</option>
+              <option value="WARNING">WARNING</option>
+              <option value="ERROR">ERROR</option>
+            </select>
+          </div>
+
+          {/* Logs Table */}
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+            {logsLoading ? (
+              <div className="p-8 text-center text-xs text-slate-400">Loading audit trail...</div>
+            ) : logs.length === 0 ? (
+              <div className="p-8 text-center text-xs text-slate-400">No activity logs match your filter criteria.</div>
+            ) : (
+              <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+                <thead className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-bold">
+                  <tr>
+                    <th className="p-3">Time</th>
+                    <th className="p-3">Module</th>
+                    <th className="p-3">Action</th>
+                    <th className="p-3">Status</th>
+                    <th className="p-3">Description</th>
+                    <th className="p-3">Duration</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {logs.map((l) => (
+                    <tr key={l._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <td className="p-3 font-mono text-slate-400 shrink-0">
+                        {new Date(l.createdAt).toLocaleTimeString()}
+                      </td>
+                      <td className="p-3 font-bold text-slate-900 dark:text-white">{l.module}</td>
+                      <td className="p-3 font-mono text-[11px] text-blue-500">{l.action}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          l.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-500' :
+                          l.status === 'WARNING' ? 'bg-amber-500/10 text-amber-500' :
+                          l.status === 'ERROR' ? 'bg-rose-500/10 text-rose-500' : 'bg-blue-500/10 text-blue-500'
+                        }`}>
+                          {l.status}
+                        </span>
+                      </td>
+                      <td className="p-3 max-w-xs truncate" title={l.description}>{l.description}</td>
+                      <td className="p-3 font-mono text-slate-400">{l.durationMs ? `${l.durationMs}ms` : '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }

@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTodo } from '../context/TodoContext';
+import DownloadAppModal from './DownloadAppModal';
 
 export default function Navbar() {
   const location = useLocation();
@@ -20,7 +21,9 @@ export default function Navbar() {
   const { isAuthenticated: isTodoAuth, user: todoUser } = useTodo();
   
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [toolsDropdownOpen, setToolsDropdownOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
@@ -31,7 +34,7 @@ export default function Navbar() {
   const hasActiveAnnouncement = !!(rotationData?.announcement?.active && rotationData?.announcement?.text);
   const badgeCount = unreadNotificationsCount + (hasActiveAnnouncement ? 1 : 0);
 
-  // Secret feature: Double click on logo launches critical admin if configured
+  // Secret feature: Double click on logo launches critical admin
   const handleLogoClick = (e) => {
     const now = Date.now();
     if (now - lastTapRef.current < 400) {
@@ -60,93 +63,180 @@ export default function Navbar() {
     }
   };
 
-  const isTodoActive = location.pathname.startsWith('/todo');
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setToolsDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const aiTools = [
+    { name: 'Document & RAG AI', path: '/rag', icon: '📄', desc: 'Permanent Knowledge Base' },
+    { name: 'Vision & Image AI', path: '/vision-ai', icon: '🖼️', desc: 'Multimodal image Q&A' },
+    { name: 'CSV Data Analytics', path: '/data-analytics', icon: '📊', desc: 'Dataset stats & charts' },
+    { name: 'SQL Database AI', path: '/database-ai', icon: '🗄️', desc: 'Safe read-only SQL studio' },
+    { name: 'Voice & Audio AI', path: '/voice-ai', icon: '🎙️', desc: 'En / Hi / Te STT & speech' },
+    { name: 'YouTube & Video AI', path: '/video-ai', icon: '🎥', desc: 'Summaries & study quizzes' },
+    { name: 'ORCA Marine AI', path: '/orca', icon: '🌊', desc: 'ISRO marine safety engine' },
+    { name: 'Healthcare & MediKiosk', path: '/healthcare', icon: '🏥', desc: 'Clinical intake & triage' },
+    { name: 'Tasks & Progress', path: isTodoAuth ? '/todo/dashboard' : '/todo', icon: '✅', desc: 'Student assignments' },
+  ];
+
+  const isCurrentActive = (path) => location.pathname === path;
 
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 z-40 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-colors duration-300">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-16">
+      <nav className="fixed top-0 left-0 right-0 z-40 backdrop-blur-xl bg-white/85 dark:bg-slate-900/85 border-b border-slate-200/80 dark:border-slate-800/80 shadow-xs transition-colors duration-300">
+        <div className="w-full max-w-[98%] 2xl:max-w-[1780px] mx-auto px-4 sm:px-6 md:px-8 lg:px-12">
+          <div className="flex items-center justify-between h-18">
 
             {/* Brand Logo */}
             <Link
               to="/"
               onClick={handleLogoClick}
-              className="flex items-center gap-3 group focus:outline-none"
-              aria-label="Row Rotation Table Home"
+              className="flex items-center gap-3.5 group focus:outline-none"
+              aria-label="CSE-5 Generative AI Super App Home"
             >
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 via-teal-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:shadow-emerald-500/30 group-hover:scale-105 transition-all duration-300">
-                <span className="text-white text-lg font-black tracking-wider">R</span>
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 via-teal-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/25 group-hover:shadow-emerald-500/40 group-hover:scale-105 transition-all duration-300">
+                <span className="text-white text-xl font-black tracking-wider">R</span>
               </div>
               <div>
-                <span className="text-lg font-black tracking-tight text-slate-900 dark:text-white group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">
+                <span className="text-xl font-black tracking-tight text-slate-900 dark:text-white group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">
                   CSE-5
                 </span>
-                <span className="text-xs block font-bold text-slate-600 dark:text-slate-300 tracking-wider">
-                  Row Rotation
+                <span className="text-xs block font-bold text-slate-500 dark:text-slate-400 tracking-wider -mt-0.5">
+                  AI Super App
                 </span>
               </div>
             </Link>
 
-            {/* Desktop Navigation Links */}
-            <div className="hidden sm:flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-md">
+            {/* Desktop Primary Navigation (Clean 4 Core Tabs + Tools Dropdown) */}
+            <div className="hidden lg:flex items-center gap-2 p-1.5 rounded-2xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/60 dark:border-slate-700/60 backdrop-blur-md">
+              {/* 1. Dashboard */}
               <Link
                 to="/"
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
-                  location.pathname === '/'
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 ${
+                  isCurrentActive('/')
                     ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-700/50'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-                Class View
+                <span>🏠</span> Dashboard
               </Link>
 
-              {/* To-Do & Tasks Link */}
+              {/* 2. AI Assistant */}
               <Link
-                to={isTodoAuth ? "/todo/dashboard" : "/todo"}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
-                  isTodoActive
-                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-sm shadow-indigo-500/20'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-700/50'
+                to="/ai-chat"
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 ${
+                  isCurrentActive('/ai-chat')
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/25'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-                <span>To-Do & Tasks</span>
-                {isTodoAuth && todoUser && (
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
-                )}
+                <span>🤖</span> AI Assistant
               </Link>
 
+              {/* 3. Row Rotation */}
+              <Link
+                to="/class-view"
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 ${
+                  isCurrentActive('/class-view')
+                    ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <span>🪑</span> Row Rotation
+              </Link>
+
+              {/* 4. Tasks & To-Do */}
+              <Link
+                to={isTodoAuth ? '/todo/dashboard' : '/todo'}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 ${
+                  location.pathname.startsWith('/todo')
+                    ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <span>✅</span> To-Do
+              </Link>
+
+              {/* Tools Studio Dropdown */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setToolsDropdownOpen(prev => !prev)}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 cursor-pointer ${
+                    location.pathname !== '/' && location.pathname !== '/ai-chat' && location.pathname !== '/class-view' && !location.pathname.startsWith('/todo') && location.pathname !== '/admin'
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <span>⚡</span> AI Studios
+                  <svg className={`w-4 h-4 transition-transform ${toolsDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {toolsDropdownOpen && (
+                  <div className="absolute top-full mt-2 left-0 w-80 p-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-1 z-50 animate-scale-in">
+                    {aiTools.map((tool, idx) => (
+                      <Link
+                        key={idx}
+                        to={tool.path}
+                        onClick={() => setToolsDropdownOpen(false)}
+                        className={`flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer ${
+                          isCurrentActive(tool.path)
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold'
+                            : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        <span className="text-xl">{tool.icon}</span>
+                        <div>
+                          <div className="text-sm font-bold">{tool.name}</div>
+                          <div className="text-xs text-slate-400">{tool.desc}</div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 5. Admin */}
               <Link
                 to="/admin"
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
-                  location.pathname === '/admin'
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 ${
+                  isCurrentActive('/admin')
                     ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-700/50'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Admin
+                <span>⚙️</span> Admin
               </Link>
             </div>
 
-            {/* Right Controls: Notification Bell, Dark Mode Toggle & Admin Auth Action */}
+            {/* Right Utility Controls: Notification, Theme, Auth, Download App */}
             <div className="hidden sm:flex items-center gap-2.5">
-              {/* Notification Bell Button (Activates & Tests Device Push Notifications) */}
+              {/* Download App Button */}
+              <button
+                onClick={() => setShowDownloadModal(true)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold bg-emerald-500/10 hover:bg-emerald-500 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 hover:text-white dark:hover:text-white transition-all shadow-xs flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
+                title="Download & Install App on Phone or Laptop"
+              >
+                <span>📱</span>
+                <span>Download App</span>
+              </button>
+
+              {/* Notification Push Button */}
               <button
                 onClick={async () => {
                   const granted = await enableNotifications();
                   if (granted || notificationsEnabled) {
                     try {
-                      // Trigger direct test push to device notification bar
                       const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
                       await fetch(`${API_BASE}/notifications/test-push`, { method: 'POST' });
                     } catch (e) {
@@ -159,16 +249,16 @@ export default function Navbar() {
                     ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                 } hover:scale-105 active:scale-95`}
-                title={notificationsEnabled ? 'Click to Test Device Push Notification 🔔' : 'Click to Enable Device Notifications 🔔'}
-                aria-label="Toggle Device Notifications"
+                title={notificationsEnabled ? 'Device Push Active 🔔' : 'Enable Device Notifications 🔔'}
+                aria-label="Toggle Notifications"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
-                {notificationsEnabled && (
+                {badgeCount > 0 && (
                   <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                 )}
-                {notificationsEnabled && (
+                {badgeCount > 0 && (
                   <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500" />
                 )}
               </button>
@@ -191,12 +281,13 @@ export default function Navbar() {
                 )}
               </button>
 
+              {/* Admin Auth Pill */}
               {!auth.isLoggedIn ? (
                 <button
                   onClick={() => setShowLoginModal(true)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-500 dark:hover:text-white transition-all shadow-xs"
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-500 dark:hover:text-white transition-all shadow-xs cursor-pointer"
                 >
-                  Admin Login
+                  Admin PIN
                 </button>
               ) : (
                 <button
@@ -204,35 +295,36 @@ export default function Navbar() {
                     auth.logout();
                     refetch();
                   }}
-                  className="px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-colors"
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-colors cursor-pointer"
                 >
                   Logout Admin
                 </button>
               )}
             </div>
 
-            {/* Mobile Menu & Theme Buttons */}
+            {/* Mobile Header Controls */}
             <div className="flex sm:hidden items-center gap-2">
               <button
+                onClick={() => setShowDownloadModal(true)}
+                className="p-2 rounded-xl text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 font-bold text-sm"
+                title="Download App"
+              >
+                📱
+              </button>
+
+              <button
                 onClick={toggleNotificationDrawer}
-                className="p-2 rounded-xl transition-all relative text-slate-600 dark:text-slate-300"
-                title="Announcements"
+                className="p-2 rounded-xl text-slate-600 dark:text-slate-300"
                 aria-label="Announcements"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
-                {badgeCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-                )}
-                {badgeCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500" />
-                )}
               </button>
 
               <button
                 onClick={toggleTheme}
-                className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="p-2 rounded-xl text-slate-600 dark:text-slate-300"
                 aria-label="Toggle Theme"
               >
                 {isDark ? '☀️' : '🌙'}
@@ -240,8 +332,8 @@ export default function Navbar() {
 
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                aria-label="Toggle menu"
+                className="p-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                aria-label="Toggle Menu"
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   {mobileMenuOpen ? (
@@ -255,91 +347,107 @@ export default function Navbar() {
 
           </div>
 
-          {/* Mobile Dropdown Menu */}
+          {/* Mobile Drawer Menu */}
           {mobileMenuOpen && (
-            <div className="sm:hidden pb-4 space-y-1 border-t border-slate-200/80 dark:border-slate-800/80 pt-2 animate-slide-down">
+            <div className="sm:hidden pb-4 space-y-1.5 border-t border-slate-200/80 dark:border-slate-800/80 pt-3 animate-slide-down">
+              {/* Install App Quick Action in Mobile Drawer */}
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setShowDownloadModal(true);
+                }}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-extrabold bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-cyan-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 cursor-pointer shadow-xs mb-2"
+              >
+                <span className="flex items-center gap-2"><span>📱</span> Install / Download App</span>
+                <span>📥</span>
+              </button>
+
               <Link
                 to="/"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                  location.pathname === '/'
+                className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all ${
+                  isCurrentActive('/')
                     ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                     : 'text-slate-700 dark:text-slate-300'
                 }`}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-                Dashboard
+                <span>🏠</span> Dashboard
+              </Link>
+
+              <Link
+                to="/ai-chat"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all ${
+                  isCurrentActive('/ai-chat')
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    : 'text-slate-700 dark:text-slate-300'
+                }`}
+              >
+                <span>🤖</span> AI Assistant
+              </Link>
+
+              <Link
+                to="/class-view"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all ${
+                  isCurrentActive('/class-view')
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    : 'text-slate-700 dark:text-slate-300'
+                }`}
+              >
+                <span>🪑</span> Row Rotation
               </Link>
 
               <Link
                 to={isTodoAuth ? '/todo/dashboard' : '/todo'}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                  isTodoActive
+                className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all ${
+                  location.pathname.startsWith('/todo')
                     ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                     : 'text-slate-700 dark:text-slate-300'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                  </svg>
-                  To-Do & Tasks
+                <span>✅</span> Tasks & To-Do
+              </Link>
+
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div className="px-4 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  AI Studios & Tools
                 </div>
-                {isTodoAuth && todoUser?.username && (
-                  <span className="px-2 py-0.5 text-[11px] rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold truncate max-w-[100px]">
-                    {todoUser.username}
-                  </span>
-                )}
-              </Link>
+                <div className="grid grid-cols-2 gap-1.5 px-2">
+                  {aiTools.map((t, idx) => (
+                    <Link
+                      key={idx}
+                      to={t.path}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-2 p-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      <span>{t.icon}</span>
+                      <span className="truncate">{t.name}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
 
-              <Link
-                to="/admin"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                  location.pathname === '/admin'
-                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                    : 'text-slate-700 dark:text-slate-300'
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Admin Panel
-              </Link>
-
-              {!auth.isLoggedIn ? (
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    setShowLoginModal(true);
-                  }}
-                  className="flex items-center gap-2 w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                <Link
+                  to="/admin"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-sm font-bold text-slate-700 dark:text-slate-300"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  Admin Sign In
-                </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    auth.logout();
-                    setMobileMenuOpen(false);
-                    refetch();
-                  }}
-                  className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
-                >
-                  Logout Admin
-                </button>
-              )}
+                  <span>⚙️</span> Admin Console
+                </Link>
+              </div>
             </div>
           )}
         </div>
       </nav>
+
+      {/* Download App Modal */}
+      <DownloadAppModal
+        isOpen={showDownloadModal}
+        onClose={() => setShowDownloadModal(false)}
+      />
 
       {/* Admin Login Quick Modal */}
       {showLoginModal && (
@@ -389,7 +497,7 @@ export default function Navbar() {
               <button
                 type="submit"
                 disabled={loginLoading || !pinInput.trim()}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
               >
                 {loginLoading ? 'Authenticating...' : 'Sign In'}
               </button>

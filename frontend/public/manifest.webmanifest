@@ -1,0 +1,20 @@
+{
+  "name": "CSE-5 Generative AI Super App",
+  "short_name": "CSE-5 AI",
+  "description": "Generative AI Super App & Row Rotation System with RAG, Vision, Analytics, and Seating Automation",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#10b981",
+  "categories": ["education", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
