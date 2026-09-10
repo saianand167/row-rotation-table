@@ -1,6 +1,6 @@
 {
-  "appId": "com.rrt.rowrotationtable",
-  "appName": "RRT — Row Rotation Table",
+  "appId": "com.sairaj.cse5app",
+  "appName": "CSE-5 AI",
   "webDir": "dist",
   "server": {
     "androidScheme": "https",
