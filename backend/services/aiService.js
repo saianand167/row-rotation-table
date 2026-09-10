@@ -32,6 +32,9 @@ function getEnvKey(keyName) {
       }
     }
   }
+  return '';
+}
+
 const GROQ_API_KEY = getEnvKey('GROQ_API_KEY') || getEnvKey('groq_api_key') || process.env.GROQ_API_KEY || '';
 const GOOGLE_API_KEY = getEnvKey('GOOGLE_API_KEY') || getEnvKey('google_api_key') || getEnvKey('GEMINI_API_KEY') || process.env.GEMINI_API_KEY || '';
 
