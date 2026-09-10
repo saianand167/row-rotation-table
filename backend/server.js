@@ -43,27 +43,34 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/rrt';
 // Initialize Socket.io
 socket.init(server);
 
-// CORS — allow frontend domains + local dev + Android WebView
-const frontendUrl = process.env.FRONTEND_URL || '';
+// CORS — allow Vercel, Render, local dev, WebView, and configured frontend domains
+const frontendUrl = process.env.FRONTEND_URL || '*';
 const allowedOrigins = frontendUrl && frontendUrl !== '*'
   ? frontendUrl.split(',').map(o => o.trim())
   : [];
 
 app.use(cors({
   origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, server-to-server)
+    if (!origin) return callback(null, true);
+    
     if (
-      !origin ||
       frontendUrl === '*' ||
       allowedOrigins.includes(origin) ||
+      origin.includes('vercel.app') ||
+      origin.includes('onrender.com') ||
       origin.includes('localhost') ||
       origin.includes('127.0.0.1')
     ) {
-      callback(null, true);
-    } else {
-      callback(new Error(`CORS blocked for origin: ${origin}`));
+      return callback(null, true);
     }
+    
+    // In production, also permit any browser client
+    return callback(null, true);
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 }));
 app.use(express.json({ limit: '35mb' }));
 app.use(express.urlencoded({ extended: true, limit: '35mb' }));
