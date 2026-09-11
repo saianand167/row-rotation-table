@@ -2,31 +2,44 @@ import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// Separate axios instance for To-Do APIs
+// Separate axios instance for To-Do APIs with 35s timeout to handle cold starts
 const todoApi = axios.create({
   baseURL: API_BASE,
-  timeout: 10000,
+  timeout: 35000,
 });
 
-// Token stored in memory (NOT localStorage) for security
-let authToken = null;
+// Token persistently initialized from localStorage so user never has to log in again
+let authToken = typeof window !== 'undefined' ? localStorage.getItem('todo_token') || null : null;
 
 export function setAuthToken(token) {
   authToken = token;
+  if (token) {
+    localStorage.setItem('todo_token', token);
+  } else {
+    localStorage.removeItem('todo_token');
+  }
 }
 
 export function getAuthToken() {
+  if (!authToken && typeof window !== 'undefined') {
+    authToken = localStorage.getItem('todo_token') || null;
+  }
   return authToken;
 }
 
 export function clearAuthToken() {
   authToken = null;
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('todo_token');
+    localStorage.removeItem('todo_cached_user');
+  }
 }
 
 // Attach auth token to every request
 todoApi.interceptors.request.use((config) => {
-  if (authToken) {
-    config.headers.Authorization = `Bearer ${authToken}`;
+  const token = getAuthToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
@@ -37,7 +50,6 @@ todoApi.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       clearAuthToken();
-      // The TodoContext will handle redirect
     }
     return Promise.reject(error);
   }
@@ -183,25 +195,27 @@ export async function getProgress() {
 
 // ─── Critical Admin API ───────────────────────────────────
 
-let criticalAdminToken = sessionStorage.getItem('critical_admin_token') || null;
+let criticalAdminToken = typeof window !== 'undefined' ? localStorage.getItem('critical_admin_token') || null : null;
 
 export function setCriticalAdminToken(token) {
   criticalAdminToken = token;
-  if (token) {
-    sessionStorage.setItem('critical_admin_token', token);
-  } else {
-    sessionStorage.removeItem('critical_admin_token');
+  if (token && typeof window !== 'undefined') {
+    localStorage.setItem('critical_admin_token', token);
+  } else if (typeof window !== 'undefined') {
+    localStorage.removeItem('critical_admin_token');
   }
 }
 
 export function clearCriticalAdminToken() {
   criticalAdminToken = null;
-  sessionStorage.removeItem('critical_admin_token');
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('critical_admin_token');
+  }
 }
 
 const criticalAdminApi = axios.create({
   baseURL: API_BASE,
-  timeout: 10000,
+  timeout: 35000,
 });
 
 criticalAdminApi.interceptors.request.use((config) => {

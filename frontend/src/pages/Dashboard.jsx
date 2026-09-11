@@ -184,29 +184,20 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 3. ANNOUNCEMENTS: Compact Card */}
+      {/* 3. ROW ROTATION ANNOUNCEMENTS: Compact Card */}
       <div className="w-full max-w-full bg-white dark:bg-slate-900/90 rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-200/90 dark:border-slate-800/90 shadow-sm backdrop-blur-xl box-border">
-        <div className="flex items-center justify-between gap-2 mb-2.5">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/25 flex items-center justify-center font-bold text-base shrink-0">
-              📢
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-white tracking-tight">
-                Announcements
-              </h2>
-              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
-                Classroom Broadcasts
-              </p>
-            </div>
+        <div className="flex items-center gap-2.5 min-w-0 mb-2.5">
+          <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/25 flex items-center justify-center font-bold text-base shrink-0">
+            📢
           </div>
-          <Link
-            to="/todo"
-            className="text-[11px] sm:text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1 shrink-0"
-          >
-            <span>Tasks</span>
-            <span>→</span>
-          </Link>
+          <div className="min-w-0">
+            <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-white tracking-tight">
+              Row Rotation Announcements
+            </h2>
+            <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
+              Live classroom seating and schedule broadcasts from Admin
+            </p>
+          </div>
         </div>
 
         {rotationData?.announcement?.active && rotationData?.announcement?.text ? (
@@ -215,12 +206,12 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/70 text-xs text-slate-500 dark:text-slate-400">
-            No active announcements right now.
+            No active row rotation announcements right now.
           </div>
         )}
       </div>
 
-      {/* 4. AI CAPABILITIES HUB: Compact 8-Card Responsive Grid */}
+      {/* 4. AI CAPABILITIES HUB: 4-Column Grid (Row 1 = 4 cards, Row 2 = 4 cards) */}
       <div className="space-y-3 pt-1 max-w-full box-border">
         <div className="flex items-center justify-between flex-wrap gap-2 px-1">
           <div>
@@ -233,36 +224,36 @@ export default function Dashboard() {
             </p>
           </div>
           <span className="text-[10px] sm:text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
-            ● 8 Modules
+            ● 8 Modules (4 × 2)
           </span>
         </div>
 
-        {/* Compact Grid: 2 columns on Mobile, 3 on Tablet, 4 on Desktop (2 rows of 4) */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 lg:gap-4 max-w-full box-border">
+        {/* 4 Columns across all devices (Row 1 has 4, Row 2 has 4) */}
+        <div className="grid grid-cols-4 gap-2 sm:gap-3.5 lg:gap-4 max-w-full box-border">
           {aiCapabilities.map((cap, idx) => (
             <Link
               key={idx}
               to={cap.path}
-              className="group p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800/80 hover:border-emerald-500/50 hover:shadow-md hover:shadow-emerald-500/5 transition-all duration-200 flex flex-col justify-between min-w-0 max-w-full box-border hover:-translate-y-0.5 active:scale-[0.98]"
+              className="relative group p-2 sm:p-3.5 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800/80 hover:border-emerald-500/50 hover:shadow-md hover:shadow-emerald-500/5 transition-all duration-200 flex flex-col items-center text-center justify-between min-w-0 max-w-full box-border hover:-translate-y-0.5 active:scale-95"
             >
-              <div className="min-w-0">
-                <div className="flex items-center justify-between gap-1.5 mb-2 sm:mb-2.5">
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 group-hover:bg-emerald-500/10 transition-all shrink-0">
-                    {cap.icon}
-                  </div>
-                  <StatusBadge status={cap.status} />
-                </div>
-                <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-emerald-500 transition-colors text-xs sm:text-sm truncate">
-                  {cap.title}
-                </h3>
-                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                  {cap.desc}
-                </p>
+              <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
+                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 inline-block shadow-sm shadow-emerald-400/50" />
               </div>
 
-              <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] sm:text-xs font-bold text-slate-400 group-hover:text-emerald-500 transition-colors">
-                <span>Launch Studio</span>
-                <span className="group-hover:translate-x-1 transition-transform">→</span>
+              <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 flex items-center justify-center text-lg sm:text-2xl group-hover:scale-110 group-hover:bg-emerald-500/10 transition-all shrink-0 mb-1 sm:mb-2">
+                {cap.icon}
+              </div>
+
+              <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-emerald-500 transition-colors text-[10px] sm:text-xs leading-tight line-clamp-2 w-full text-center">
+                {cap.title}
+              </h3>
+
+              <p className="text-[9px] sm:text-[11px] text-slate-400 dark:text-slate-400 mt-0.5 hidden min-[380px]:block truncate w-full text-center">
+                {cap.desc}
+              </p>
+
+              <div className="mt-1.5 pt-1 border-t border-slate-100 dark:border-slate-800/80 w-full flex items-center justify-center text-[9px] sm:text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 group-hover:underline">
+                <span>Launch →</span>
               </div>
             </Link>
           ))}

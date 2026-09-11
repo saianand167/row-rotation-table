@@ -12,15 +12,27 @@ import {
 const TodoContext = createContext(null);
 
 export function TodoProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(() => {
+    try {
+      const cached = typeof window !== 'undefined' ? localStorage.getItem('todo_cached_user') : null;
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    return typeof window !== 'undefined' && !localStorage.getItem('todo_token');
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return typeof window !== 'undefined' && !!localStorage.getItem('todo_token');
+  });
 
   // Check if user has a valid session on mount
   useEffect(() => {
-    const storedToken = localStorage.getItem('todo_token') || sessionStorage.getItem('todo_token');
+    const storedToken = localStorage.getItem('todo_token');
     if (storedToken) {
       setAuthToken(storedToken);
+      setIsAuthenticated(true);
       checkAuth();
     } else {
       setLoading(false);
@@ -34,14 +46,21 @@ export function TodoProvider({ children }) {
         return;
       }
       const data = await fetchMe();
-      setUser(data.user);
-      setIsAuthenticated(true);
-    } catch {
-      clearAuthToken();
-      localStorage.removeItem('todo_token');
-      sessionStorage.removeItem('todo_token');
-      setUser(null);
-      setIsAuthenticated(false);
+      if (data && data.user) {
+        setUser(data.user);
+        localStorage.setItem('todo_cached_user', JSON.stringify(data.user));
+        setIsAuthenticated(true);
+      }
+    } catch (err) {
+      // If server returned explicit 401 unauthorized, log out.
+      // Otherwise (e.g. offline, timeout, server cold start), keep cached user session intact!
+      if (err.response?.status === 401) {
+        clearAuthToken();
+        localStorage.removeItem('todo_token');
+        localStorage.removeItem('todo_cached_user');
+        setUser(null);
+        setIsAuthenticated(false);
+      }
     } finally {
       setLoading(false);
     }
@@ -51,8 +70,10 @@ export function TodoProvider({ children }) {
     const data = await loginUser(username, password);
     if (data.success && data.token) {
       localStorage.setItem('todo_token', data.token);
-      sessionStorage.setItem('todo_token', data.token);
-      setUser(data.user);
+      if (data.user) {
+        localStorage.setItem('todo_cached_user', JSON.stringify(data.user));
+        setUser(data.user);
+      }
       setIsAuthenticated(true);
     }
     return data;
@@ -64,9 +85,14 @@ export function TodoProvider({ children }) {
   }, []);
 
   const logout = useCallback(async () => {
-    await logoutUser();
+    try {
+      await logoutUser();
+    } catch {
+      // ignore
+    }
+    clearAuthToken();
     localStorage.removeItem('todo_token');
-    sessionStorage.removeItem('todo_token');
+    localStorage.removeItem('todo_cached_user');
     setUser(null);
     setIsAuthenticated(false);
   }, []);
