@@ -402,7 +402,7 @@ export default function AIAssistant() {
                           </div>
                         )}
                         {step.output && (
-                          <div className="mt-1 p-2 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 text-[11px] leading-relaxed">
+                          <div className="mt-1 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 text-[11px] leading-relaxed overflow-x-auto max-w-full font-mono">
                             {step.output}
                           </div>
                         )}
@@ -413,14 +413,14 @@ export default function AIAssistant() {
 
                 {/* Attachment badge if uploaded by user */}
                 {isUser && msg.attachment && (
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-700/30 text-white text-xs font-mono mb-1">
-                    <span>📎</span> {msg.attachment.name}
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-700/30 text-white text-xs font-mono mb-1 max-w-full truncate">
+                    <span>📎</span> <span className="truncate">{msg.attachment.name}</span>
                   </div>
                 )}
 
                 {/* Main Message Bubble */}
                 <div
-                  className={`p-4 rounded-3xl text-sm leading-relaxed whitespace-pre-wrap ${
+                  className={`p-3.5 sm:p-4 rounded-3xl text-xs sm:text-sm leading-relaxed whitespace-pre-wrap break-words max-w-full overflow-hidden ${
                     isUser
                       ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-tr-none shadow-md shadow-emerald-500/20'
                       : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 rounded-tl-none border border-slate-200/90 dark:border-slate-800/90 shadow-xs'
@@ -437,7 +437,7 @@ export default function AIAssistant() {
                       {msg.citations.map((c, cIdx) => (
                         <div
                           key={cIdx}
-                          className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200/50 dark:border-blue-900/50 text-xs text-slate-700 dark:text-slate-300"
+                          className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200/50 dark:border-blue-900/50 text-xs text-slate-700 dark:text-slate-300 break-words"
                         >
                           <span className="font-bold text-blue-600 dark:text-blue-400">
                             [{c.filename} • Page {c.pageNumber}]
@@ -453,7 +453,7 @@ export default function AIAssistant() {
                 {!isUser && (
                   <button
                     onClick={() => speakText(msg.content)}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer self-start"
                   >
                     <span>{isSpeaking ? '🔇 Stop Audio' : '🔊 Listen'}</span>
                   </button>
@@ -474,7 +474,7 @@ export default function AIAssistant() {
             <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center text-sm font-bold animate-pulse">
               🤖
             </div>
-            <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-tl-none flex items-center gap-2 shadow-xs">
+            <div className="p-3.5 sm:p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-tl-none flex items-center gap-2 shadow-xs">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
               <span className="text-xs text-slate-500 font-medium">Selecting tool & reasoning...</span>
             </div>
@@ -485,13 +485,13 @@ export default function AIAssistant() {
 
       {/* Attachment Preview Chip */}
       {attachedFile && (
-        <div className="mt-2 flex items-center gap-2 p-2 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-300">
+        <div className="mt-2 flex items-center gap-2 p-2 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-300 max-w-full">
           <span>📎</span>
-          <span className="font-bold">{attachedFile.name}</span>
-          <span className="text-[10px] text-slate-400">({(attachedFile.size / 1024).toFixed(1)} KB)</span>
+          <span className="font-bold truncate">{attachedFile.name}</span>
+          <span className="text-[10px] text-slate-400 shrink-0">({(attachedFile.size / 1024).toFixed(1)} KB)</span>
           <button
             onClick={() => setAttachedFile(null)}
-            className="ml-auto p-1 text-slate-400 hover:text-rose-500"
+            className="ml-auto p-1 text-slate-400 hover:text-rose-500 cursor-pointer shrink-0"
           >
             ✕
           </button>
@@ -515,7 +515,7 @@ export default function AIAssistant() {
                 className="px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-bold transition-all border border-cyan-500/30 cursor-pointer"
                 title="Stop recording and keep text in the input box so you can edit before sending"
               >
-                ⏹️ Stop & Edit Text
+                ⏹️ Stop & Edit
               </button>
               <button
                 type="button"
@@ -538,7 +538,7 @@ export default function AIAssistant() {
             <span className="w-1.5 bg-rose-500 rounded-full animate-wave-2" />
           </div>
 
-          <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-cyan-300 min-h-[40px] flex items-center">
+          <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-cyan-300 min-h-[40px] flex items-center break-all">
             {liveStreamVoice || inputPrompt ? (
               <span>
                 "{liveStreamVoice || inputPrompt}"
@@ -553,14 +553,14 @@ export default function AIAssistant() {
         </div>
       )}
 
-      {/* Multi-Attachment & Input Bar */}
-      <div className="pt-2">
+      {/* Multi-Attachment & Input Bar (Sticky above bottom nav on mobile) */}
+      <div className="pt-2 sticky bottom-18 lg:bottom-0 z-30">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             handleSendMessage();
           }}
-          className="flex items-center gap-2 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-lg"
+          className="flex items-center gap-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl"
         >
           {/* File Attachment Input Trigger */}
           <input
@@ -574,7 +574,7 @@ export default function AIAssistant() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="p-2.5 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="p-2.5 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
             title="Attach Document, Image, CSV, or Database"
           >
             📎
@@ -583,7 +583,7 @@ export default function AIAssistant() {
           <button
             type="button"
             onClick={toggleSpeechRecognition}
-            className={`p-2.5 rounded-xl transition-all ${
+            className={`p-2.5 rounded-xl transition-all cursor-pointer shrink-0 ${
               isListening
                 ? 'bg-rose-500 text-white animate-pulse'
                 : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -597,18 +597,16 @@ export default function AIAssistant() {
             type="text"
             value={inputPrompt}
             onChange={(e) => setInputPrompt(e.target.value)}
-            placeholder="Ask anything (e.g. 'What is today\'s seating?', 'Query students db', 'Explain diagram')..."
-            className="flex-1 bg-transparent px-2 py-1 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
+            placeholder="Ask anything (seating, sql, vision, RAG)..."
+            className="flex-1 bg-transparent px-2 py-2 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none min-w-0"
           />
 
           <button
             type="submit"
             disabled={(!inputPrompt.trim() && !attachedFile) || loading}
-            className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold disabled:opacity-40 hover:scale-105 active:scale-95 transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
+            className="px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-            </svg>
+            Send
           </button>
         </form>
       </div>

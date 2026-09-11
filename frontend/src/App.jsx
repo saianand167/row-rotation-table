@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
+import BottomNav from './components/BottomNav';
+import UpdateBanner from './components/UpdateBanner';
 import Dashboard from './pages/Dashboard';
 import AIAssistant from './pages/AIAssistant';
 import StudentView from './pages/StudentView';
@@ -28,7 +30,7 @@ export default function App() {
       <AppProvider>
         <TodoProvider>
           <BrowserRouter>
-            <div className="min-h-screen transition-colors duration-300 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 selection:bg-emerald-500/20 selection:text-emerald-600">
+            <div className="min-h-screen transition-colors duration-300 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 selection:bg-emerald-500/20 selection:text-emerald-600 overflow-x-hidden w-full max-w-[100vw]">
               {/* Background decorations */}
               <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
                 <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-emerald-500/10 dark:bg-emerald-500/5 blur-3xl" />
@@ -36,11 +38,14 @@ export default function App() {
                 <div className="absolute top-[40%] left-[30%] w-[400px] h-[400px] rounded-full bg-cyan-500/5 dark:bg-cyan-500/3 blur-3xl" />
               </div>
 
+              {/* Top PWA Update Notification Banner */}
+              <UpdateBanner />
+
               {/* Content */}
-              <div className="relative z-10">
+              <div className="relative z-10 w-full overflow-x-hidden">
                 <Navbar />
 
-                <main className="w-full max-w-[98%] 2xl:max-w-[1780px] mx-auto px-4 sm:px-6 md:px-8 lg:px-12 pt-26 pb-16">
+                <main className="w-full max-w-[98%] 2xl:max-w-[1780px] mx-auto px-3 sm:px-6 md:px-8 lg:px-12 pt-20 lg:pt-26 pb-24 lg:pb-16 overflow-x-hidden">
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/ai-chat" element={<AIAssistant />} />
@@ -63,14 +68,17 @@ export default function App() {
                   </Routes>
                 </main>
 
-                {/* Global Footer */}
-                <footer className="mt-14 pb-10 text-center text-slate-500 dark:text-slate-400 border-t border-slate-200/70 dark:border-slate-800/70 pt-6">
-                  <div className="flex items-center justify-center gap-1.5 font-medium text-sm">
+                {/* Global Single-Line Footer */}
+                <footer className="mt-8 lg:mt-14 pb-12 lg:pb-10 mb-14 lg:mb-0 text-center text-slate-500 dark:text-slate-400 border-t border-slate-200/70 dark:border-slate-800/70 pt-6">
+                  <div className="flex items-center justify-center gap-1.5 font-medium text-xs sm:text-sm">
                     <span>Made with</span>
                     <span className="text-rose-500 animate-pulse text-base inline-block">❤️</span>
                     <span>for CSE</span>
                   </div>
                 </footer>
+
+                {/* Mobile Bottom Navigation */}
+                <BottomNav />
               </div>
 
               {/* Toast Notifications */}

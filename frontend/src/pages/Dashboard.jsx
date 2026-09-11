@@ -79,39 +79,39 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="space-y-10 animate-fade-in">
+    <div className="space-y-6 sm:space-y-8 lg:space-y-10 animate-fade-in w-full max-w-full overflow-hidden">
       {/* Hero Welcome Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950/90 to-slate-900 border border-slate-800/80 p-8 sm:p-12 lg:p-14 shadow-2xl">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950/90 to-slate-900 border border-slate-800/80 p-6 sm:p-10 lg:p-14 shadow-2xl">
         <div className="absolute -top-32 -right-32 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-teal-500/5 via-transparent to-transparent pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
-          <div className="space-y-4 max-w-4xl">
-            <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs sm:text-sm font-bold uppercase tracking-wider">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 lg:gap-8">
+          <div className="space-y-3 sm:space-y-4 max-w-4xl">
+            <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs sm:text-sm font-bold uppercase tracking-wider">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
               CSE-5 Unified AI Operating System
             </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight">
               Generative AI Super App
             </h1>
-            <p className="text-slate-300 text-base sm:text-lg lg:text-xl leading-relaxed">
+            <p className="text-slate-300 text-sm sm:text-lg lg:text-xl leading-relaxed">
               Your unified workspace for classroom seating automation, permanent knowledge RAG, safe SQL analytics, multi-modal vision, and specialized intelligence agents.
             </p>
           </div>
 
-          <div className="flex flex-wrap sm:flex-nowrap gap-4 shrink-0">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 shrink-0 w-full sm:w-auto">
             <Link
               to="/ai-chat"
-              className="px-7 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white font-extrabold text-base shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.03] active:scale-[0.98] transition-all flex items-center gap-3 cursor-pointer"
+              className="w-full sm:w-auto px-6 lg:px-7 py-3.5 lg:py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white font-extrabold text-sm sm:text-base shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.03] active:scale-[0.98] transition-all flex items-center justify-center gap-3 cursor-pointer"
             >
-              <span className="text-2xl">🤖</span> Launch AI Assistant
+              <span className="text-xl sm:text-2xl">🤖</span> Launch AI Assistant
             </Link>
             <Link
               to="/class-view"
-              className="px-7 py-4 rounded-2xl bg-slate-800/95 hover:bg-slate-700 text-white font-extrabold text-base border border-slate-700/80 backdrop-blur-md hover:scale-[1.03] active:scale-[0.98] transition-all flex items-center gap-3 cursor-pointer shadow-lg"
+              className="w-full sm:w-auto px-6 lg:px-7 py-3.5 lg:py-4 rounded-2xl bg-slate-800/95 hover:bg-slate-700 text-white font-extrabold text-sm sm:text-base border border-slate-700/80 backdrop-blur-md hover:scale-[1.03] active:scale-[0.98] transition-all flex items-center justify-center gap-3 cursor-pointer shadow-lg"
             >
-              <span className="text-2xl">🪑</span> Row Rotation
+              <span className="text-xl sm:text-2xl">🪑</span> Row Rotation
             </Link>
           </div>
         </div>

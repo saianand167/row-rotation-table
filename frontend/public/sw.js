@@ -1,6 +1,6 @@
-/* Service Worker for CSE5 PWA & Web Push Notifications */
+/* Service Worker for CSE5 PWA & Web Push Notifications with Auto-Update Mechanism */
 
-const CACHE_NAME = 'cse5-superapp-v1';
+const CACHE_VERSION = 'cse5-superapp-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -8,12 +8,20 @@ const ASSETS_TO_CACHE = [
   '/manifest.webmanifest'
 ];
 
+// Handle Skip Waiting message from client update banner
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
+    caches.open(CACHE_VERSION).then((cache) => {
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
+  // Do not automatically force-skip if an active app is being used, wait for client trigger or auto-activate
   self.skipWaiting();
 });
 
@@ -22,7 +30,8 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
-          if (key !== CACHE_NAME) {
+          if (key !== CACHE_VERSION) {
+            console.log('Cleaning old PWA cache:', key);
             return caches.delete(key);
           }
         })
@@ -33,23 +42,54 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Pass API requests directly to network
-  if (event.request.url.includes('/api/') || event.request.method !== 'GET') {
+  const url = new URL(event.request.url);
+
+  // Strictly pass API, socket, and non-GET requests directly to network
+  if (
+    url.pathname.startsWith('/api') ||
+    url.pathname.startsWith('/socket.io') ||
+    event.request.method !== 'GET'
+  ) {
     return;
   }
 
+  // Network-first strategy for navigation/HTML to always get the latest deployment
+  if (event.request.mode === 'navigate' || event.request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, responseClone));
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match('/index.html') || caches.match('/');
+        })
+    );
+    return;
+  }
+
+  // Stale-while-revalidate for static assets
   event.respondWith(
-    fetch(event.request).catch(() => {
-      return caches.match(event.request).then((cachedResponse) => {
-        if (cachedResponse) return cachedResponse;
-        if (event.request.headers.get('accept')?.includes('text/html')) {
-          return caches.match('/index.html');
-        }
-      });
+    caches.match(event.request).then((cachedResponse) => {
+      const fetchPromise = fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, responseClone));
+          }
+          return networkResponse;
+        })
+        .catch(() => cachedResponse);
+
+      return cachedResponse || fetchPromise;
     })
   );
 });
 
+/* ─── Push Notification & Interaction Handlers ────────── */
 self.addEventListener('push', (event) => {
   let data = {};
   if (event.data) {
