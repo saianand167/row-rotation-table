@@ -292,18 +292,18 @@ export default function AIAssistant() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8.5rem)] max-w-5xl xl:max-w-6xl w-full mx-auto animate-fade-in">
+    <div className="flex flex-col h-[calc(100dvh-11.5rem)] lg:h-[calc(100vh-14.5rem)] max-w-5xl xl:max-w-6xl w-full mx-auto animate-fade-in overflow-hidden">
       {/* Header Bar */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 mb-3">
+      <div className="flex items-center justify-between pb-2.5 border-b border-slate-200 dark:border-slate-800 mb-2 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 via-teal-500 to-cyan-500 text-white flex items-center justify-center font-bold text-xl shadow-md shadow-emerald-500/20">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 via-teal-500 to-cyan-500 text-white flex items-center justify-center font-bold text-lg sm:text-xl shadow-md shadow-emerald-500/20 shrink-0">
             🤖
           </div>
-          <div>
-            <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2 truncate">
               AI Super Assistant
             </h1>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">
               Intelligent Multi-Tool Router • Intent Auto-Dispatch
             </p>
           </div>
@@ -342,7 +342,7 @@ export default function AIAssistant() {
       </div>
 
       {/* Suggested Prompt Chips */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2.5 mb-1 no-scrollbar">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-1 no-scrollbar shrink-0">
         {[
           { label: '🪑 Today\'s Rotation?', text: 'What is today\'s row rotation seating arrangement?' },
           { label: '📄 Search Knowledge Base', text: 'Based on my uploaded notes, explain normalization.' },
@@ -353,15 +353,15 @@ export default function AIAssistant() {
           <button
             key={idx}
             onClick={() => handleSendMessage(chip.text)}
-            className="shrink-0 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800/80 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 text-slate-600 dark:text-slate-300 text-xs font-medium border border-slate-200/80 dark:border-slate-700/80 transition-all cursor-pointer"
+            className="shrink-0 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800/80 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 text-slate-600 dark:text-slate-300 text-[11px] sm:text-xs font-medium border border-slate-200/80 dark:border-slate-700/80 transition-all cursor-pointer"
           >
             {chip.label}
           </button>
         ))}
       </div>
 
-      {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+      {/* Messages Container (Independently scrollable with input fixed below) */}
+      <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 min-h-0">
         {messages.map((msg, idx) => {
           const isUser = msg.role === 'user';
           return (
@@ -553,14 +553,14 @@ export default function AIAssistant() {
         </div>
       )}
 
-      {/* Multi-Attachment & Input Bar (Sticky above bottom nav on mobile) */}
-      <div className="pt-2 sticky bottom-18 lg:bottom-0 z-30">
+      {/* Multi-Attachment & Input Bar (Permanently Fixed at bottom of Chat) */}
+      <div className="pt-2 pb-0.5 shrink-0 z-20 w-full">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             handleSendMessage();
           }}
-          className="flex items-center gap-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl"
+          className="flex items-center gap-1.5 sm:gap-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-1.5 sm:p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl"
         >
           {/* File Attachment Input Trigger */}
           <input

@@ -98,15 +98,6 @@ export function AppProvider({ children }) {
         body: JSON.stringify({ subscription }),
       });
 
-      // Show welcome notification in notification bar
-      if (registration && registration.showNotification) {
-        registration.showNotification('Notifications Activated 🔔', {
-          body: 'You will receive classroom rotation updates and announcements directly on your device.',
-          icon: '/favicon.svg',
-          badge: '/favicon.svg',
-        });
-      }
-
       return true;
     } catch (err) {
       console.error('Service Worker / Push Registration failed:', err);
