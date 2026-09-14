@@ -17,7 +17,7 @@ export function getApiBaseUrl() {
 }
 
 const api = axios.create({
-  timeout: 12000,
+  timeout: 8000,
 });
 
 api.interceptors.request.use((config) => {
@@ -40,8 +40,16 @@ let pendingRotationPromise = null;
 export async function fetchRotation() {
   if (pendingRotationPromise) return pendingRotationPromise;
   const localDate = getLocalDateString();
-  pendingRotationPromise = api.get(`/rotation?clientDate=${localDate}`)
+  pendingRotationPromise = api.get(`/rotation?clientDate=${localDate}`, { timeout: 5000 })
     .then((res) => res.data)
+    .catch(async (err) => {
+      // Retry once with longer timeout on failure
+      if (err.code === 'ECONNABORTED' || !err.response) {
+        return api.get(`/rotation?clientDate=${localDate}`, { timeout: 10000 })
+          .then((res) => res.data);
+      }
+      throw err;
+    })
     .finally(() => {
       pendingRotationPromise = null;
     });

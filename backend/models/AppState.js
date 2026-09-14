@@ -222,7 +222,7 @@ let memoryCacheExpiry = 0;
 // Post-save hook to always sync with disk and update in-memory cache
 appStateSchema.post('save', function (doc) {
   memoryCachedState = doc;
-  memoryCacheExpiry = Date.now() + 3000;
+  memoryCacheExpiry = Date.now() + 30000;
   saveToDisk(doc);
 });
 

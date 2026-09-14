@@ -1,6 +1,7 @@
 {
   "_id": "app_state",
   "currentDay": 18,
+  "startDate": "2026-09-14T07:26:51.107Z",
   "lastAdvanceDate": "2026-09-14",
   "isPaused": false,
   "isManualOverride": true,
@@ -11,7 +12,12 @@
     "active": false,
     "createdAt": null
   },
+  "adminPin": "CSE5@123",
+  "isRowsViewEnabled": false,
   "randomLayoutDay": null,
+  "randomLayoutGeneratedAt": null,
   "holidayRandomDate": null,
-  "holidayRandomSeating": []
+  "holidayRandomSeating": [],
+  "vapidPublicKey": "BJpcM91olEiq2TrOqroGR9FdAArQlGUb1evrVQZcCAh0QarcrO8iIqwdLrUJ5Nk6Ck_TRTJ5cg1AVDUTPkmbVXk",
+  "vapidPrivateKey": "9ullOm9wRo-eYjexecz_zIqaGYeMWkeU0mKX8w1OQ6k"
 }

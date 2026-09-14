@@ -61,6 +61,16 @@ async function computeCurrentDay(state, today) {
     return state.currentDay;
   }
 
+  // If admin manually overrode the day, preserve it.
+  // Only update lastAdvanceDate to prevent future catch-up when override is cleared.
+  if (state.isManualOverride) {
+    if (state.lastAdvanceDate !== today) {
+      state.lastAdvanceDate = today;
+      await state.save();
+    }
+    return state.currentDay;
+  }
+
   const lastAdvance = state.lastAdvanceDate;
 
   // If lastAdvanceDate is missing, initialize to today
