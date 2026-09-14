@@ -36,10 +36,12 @@ function isSkipDay(dateStr, leaveDays) {
 function getSeatingForDay(day, customSeating) {
   // Check for custom override first
   const customKey = String(day);
-  if (customSeating && customSeating.get && customSeating.get(customKey)) {
-    const custom = customSeating.get(customKey);
-    if (custom && custom.length === 6) {
-      return custom;
+  if (customSeating) {
+    if (typeof customSeating.get === 'function') {
+      const custom = customSeating.get(customKey);
+      if (custom && custom.length === 6) return custom;
+    } else if (customSeating[customKey] && customSeating[customKey].length === 6) {
+      return customSeating[customKey];
     }
   }
   return rotationData[day];
@@ -47,7 +49,7 @@ function getSeatingForDay(day, customSeating) {
 
 /**
  * Compute the current rotation day based on elapsed time,
- * leave days, Sundays, pause state, and manual overrides.
+ * leave days, weekends, pause state, and manual overrides.
  */
 async function computeCurrentDay(state, today) {
   if (!today) {
@@ -61,6 +63,13 @@ async function computeCurrentDay(state, today) {
 
   const lastAdvance = state.lastAdvanceDate;
 
+  // If lastAdvanceDate is missing, initialize to today
+  if (!lastAdvance) {
+    state.lastAdvanceDate = today;
+    await state.save();
+    return state.currentDay;
+  }
+
   // If we're still on the same day, no advancement needed
   if (today === lastAdvance) {
     return state.currentDay;
@@ -69,14 +78,19 @@ async function computeCurrentDay(state, today) {
   // Calculate each date between lastAdvanceDate and today
   const start = new Date(lastAdvance + 'T00:00:00');
   const end = new Date(today + 'T00:00:00');
-  let daysToAdvance = 0;
 
+  // If client/target date is earlier or same as last advance, return current stored day
+  if (end <= start) {
+    return state.currentDay;
+  }
+
+  let daysToAdvance = 0;
   const current = new Date(start);
   current.setDate(current.getDate() + 1); // Start from the day after last advance
 
   while (current <= end) {
     const dateStr = toDateStr(current);
-    // Only advance if this date is NOT a Sunday and NOT a leave day
+    // Only advance if this date is NOT a weekend and NOT a leave day
     if (!isSkipDay(dateStr, state.leaveDays)) {
       daysToAdvance++;
     }
@@ -84,16 +98,17 @@ async function computeCurrentDay(state, today) {
   }
 
   if (daysToAdvance > 0) {
-    // Advance the day, wrapping around at 24
-    let newDay = state.currentDay + daysToAdvance;
-    while (newDay > 24) {
-      newDay -= 24;
-    }
+    // Advance the day, wrapping cleanly within 1–24 cycle
+    let newDay = ((state.currentDay - 1 + daysToAdvance) % 24) + 1;
 
     // Persist the new state
     state.currentDay = newDay;
     state.lastAdvanceDate = today;
     state.isManualOverride = false;
+    await state.save();
+  } else if (state.lastAdvanceDate !== today) {
+    // Over holidays or non-school days, catch up lastAdvanceDate without shifting day
+    state.lastAdvanceDate = today;
     await state.save();
   }
 

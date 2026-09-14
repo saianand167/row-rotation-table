@@ -21,8 +21,21 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 export function AppProvider({ children }) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(() => {
+    try {
+      const cached = typeof window !== 'undefined' ? localStorage.getItem('rrt_cached_rotation') : null;
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !(typeof window !== 'undefined' && localStorage.getItem('rrt_cached_rotation'));
+    } catch {
+      return true;
+    }
+  });
   const [error, setError] = useState(null);
   const [liveNotification, setLiveNotification] = useState(null);
 
@@ -37,9 +50,16 @@ export function AppProvider({ children }) {
       const result = await fetchRotation();
       setData(result);
       setError(null);
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('rrt_cached_rotation', JSON.stringify(result));
+        }
+      } catch {}
     } catch (err) {
       console.error('Failed to fetch rotation:', err);
-      setError('Unable to connect to the RRT server. Please try again.');
+      if (typeof window !== 'undefined' && !localStorage.getItem('rrt_cached_rotation')) {
+        setError('Unable to connect to the RRT server. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

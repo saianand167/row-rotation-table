@@ -17,7 +17,7 @@ export function getApiBaseUrl() {
 }
 
 const api = axios.create({
-  timeout: 35000,
+  timeout: 12000,
 });
 
 api.interceptors.request.use((config) => {
@@ -35,10 +35,17 @@ function getLocalDateString() {
 
 // ─── Student API ─────────────────────────────────────────
 
+let pendingRotationPromise = null;
+
 export async function fetchRotation() {
+  if (pendingRotationPromise) return pendingRotationPromise;
   const localDate = getLocalDateString();
-  const { data } = await api.get(`/rotation?clientDate=${localDate}`);
-  return data;
+  pendingRotationPromise = api.get(`/rotation?clientDate=${localDate}`)
+    .then((res) => res.data)
+    .finally(() => {
+      pendingRotationPromise = null;
+    });
+  return pendingRotationPromise;
 }
 
 export async function fetchNavigate(offset) {

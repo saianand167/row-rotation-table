@@ -56,35 +56,13 @@ router.post('/set-day', adminAuth, async (req, res) => {
     const state = await AppState.getState();
     state.currentDay = dayNum;
     state.isManualOverride = true;
-
-    let isSkipDayToday = false;
-    if (clientDate) {
-      const d = new Date(clientDate + 'T00:00:00');
-      const dw = d.getDay();
-      isSkipDayToday = (dw === 5 || dw === 6 || dw === 0) || state.leaveDays.includes(clientDate);
-    }
-
-    if (isSkipDayToday && clientDate) {
-      let nextWorkingDate = new Date(clientDate + 'T00:00:00');
-      nextWorkingDate.setDate(nextWorkingDate.getDate() + 1);
-      
-      while (true) {
-        // Need to pad correctly, so using local date components
-        const y = nextWorkingDate.getFullYear();
-        const m = String(nextWorkingDate.getMonth() + 1).padStart(2, '0');
-        const dNum = String(nextWorkingDate.getDate()).padStart(2, '0');
-        const dStr = `${y}-${m}-${dNum}`;
-        const dw = nextWorkingDate.getDay();
-        const isSkip = (dw === 5 || dw === 6 || dw === 0) || state.leaveDays.includes(dStr);
-        if (!isSkip) {
-          state.lastAdvanceDate = dStr;
-          break;
-        }
-        nextWorkingDate.setDate(nextWorkingDate.getDate() + 1);
-      }
-    } else {
-      state.lastAdvanceDate = clientDate || new Date().toISOString().split('T')[0];
-    }
+    state.lastAdvanceDate = clientDate || (() => {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const dayStr = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${dayStr}`;
+    })();
 
     await state.save();
     broadcastUpdate('set_day', { currentDay: dayNum });
@@ -271,6 +249,7 @@ router.put('/seating/:day', adminAuth, async (req, res) => {
       state.customSeating = new Map();
     }
     state.customSeating.set(String(dayNum), arrangement);
+    state.markModified('customSeating');
     if (state.randomLayoutDay === dayNum) {
       state.randomLayoutDay = null;
       state.randomLayoutGeneratedAt = null;
@@ -305,6 +284,7 @@ router.delete('/seating/:day', adminAuth, async (req, res) => {
     const state = await AppState.getState();
     if (state.customSeating) {
       state.customSeating.delete(String(dayNum));
+      state.markModified('customSeating');
     }
     if (state.randomLayoutDay === dayNum) {
       state.randomLayoutDay = null;
@@ -337,7 +317,14 @@ router.get('/seating', adminAuth, async (req, res) => {
 
     for (let d = 1; d <= 24; d++) {
       const customKey = String(d);
-      const custom = state.customSeating?.get(customKey);
+      let custom = null;
+      if (state.customSeating) {
+        if (typeof state.customSeating.get === 'function') {
+          custom = state.customSeating.get(customKey);
+        } else if (state.customSeating[customKey]) {
+          custom = state.customSeating[customKey];
+        }
+      }
       allSeating[d] = {
         arrangement: (custom && custom.length === 6) ? custom : rotationData[d],
         isCustom: !!(custom && custom.length === 6),
@@ -474,6 +461,7 @@ router.post('/generate-random-seating', adminAuth, async (req, res) => {
         state.customSeating = new Map();
       }
       state.customSeating.set(String(currentDay), arrangement);
+      state.markModified('customSeating');
 
       // 6. Label as random layout
       state.randomLayoutDay = currentDay;

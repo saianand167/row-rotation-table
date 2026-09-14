@@ -77,15 +77,28 @@ app.use(express.json({ limit: '35mb' }));
 app.use(express.urlencoded({ extended: true, limit: '35mb' }));
 app.use(cookieParser());
 
-// IP Visitor Tracking Middleware
+// IP Visitor Tracking Middleware (debounced to maximize API response speed)
+const recentVisitors = new Map();
 app.use(async (req, res, next) => {
   try {
+    if (
+      req.path.startsWith('/api/rotation') ||
+      req.path.startsWith('/api/health') ||
+      req.path.startsWith('/api/critical-admin')
+    ) {
+      return next();
+    }
+
     const rawIp = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.connection?.remoteAddress || '127.0.0.1';
     const ip = rawIp.replace('::ffff:', '');
     const ua = req.headers['user-agent'] || '';
 
-    // Record visitor IP asynchronously
-    if (ip && !req.path.startsWith('/api/critical-admin')) {
+    const lastSeen = recentVisitors.get(ip);
+    const now = Date.now();
+    if (!lastSeen || now - lastSeen > 5 * 60 * 1000) {
+      recentVisitors.set(ip, now);
+      if (recentVisitors.size > 1000) recentVisitors.clear();
+
       Visitor.findOneAndUpdate(
         { ipAddress: ip },
         {
@@ -136,6 +149,25 @@ setInterval(() => {
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Global error handling middleware (catches malformed JSON syntax errors, etc.)
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && (err.status === 400 || err.statusCode === 400)) {
+    return res.status(400).json({ error: 'Malformed JSON payload' });
+  }
+  console.error('Unhandled express error:', err.message || err);
+  if (!res.headersSent) {
+    res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// Process-level crash prevention
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception caught:', err.message || err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection caught:', reason);
 });
 
 // Start HTTP Server immediately
