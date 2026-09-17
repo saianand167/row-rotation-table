@@ -61,16 +61,6 @@ async function computeCurrentDay(state, today) {
     return state.currentDay;
   }
 
-  // If admin manually overrode the day, preserve it.
-  // Only update lastAdvanceDate to prevent future catch-up when override is cleared.
-  if (state.isManualOverride) {
-    if (state.lastAdvanceDate !== today) {
-      state.lastAdvanceDate = today;
-      await state.save();
-    }
-    return state.currentDay;
-  }
-
   const lastAdvance = state.lastAdvanceDate;
 
   // If lastAdvanceDate is missing, initialize to today
@@ -116,6 +106,16 @@ async function computeCurrentDay(state, today) {
     state.lastAdvanceDate = today;
     state.isManualOverride = false;
     await state.save();
+
+    // Broadcast update & send Web Push notification on day advance
+    try {
+      const { broadcastUpdate } = require('../socket');
+      const { sendPushToAll } = require('../pushNotification');
+      broadcastUpdate('set_day', { currentDay: newDay });
+      sendPushToAll({ title: 'New Day Seating 📅', body: `Today is Rotation Day ${newDay}` });
+    } catch (pushErr) {
+      console.error('Error sending auto-advance push:', pushErr.message);
+    }
   } else if (state.lastAdvanceDate !== today) {
     // Over holidays or non-school days, catch up lastAdvanceDate without shifting day
     state.lastAdvanceDate = today;

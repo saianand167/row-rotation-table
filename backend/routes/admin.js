@@ -55,7 +55,7 @@ router.post('/set-day', adminAuth, async (req, res) => {
 
     const state = await AppState.getState();
     state.currentDay = dayNum;
-    state.isManualOverride = true;
+    state.isManualOverride = false;
     state.lastAdvanceDate = clientDate || (() => {
       const d = new Date();
       const y = d.getFullYear();
