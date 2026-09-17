@@ -1,7 +1,7 @@
 // Comprehensive Push Notification Pipeline Test
 const https = require('https');
 
-const BACKEND = 'https://row-rotation-table.onrender.com';
+const BACKEND = 'https://cse5-backend.onrender.com';
 
 function request(url, method = 'GET', body = null) {
   return new Promise((resolve, reject) => {

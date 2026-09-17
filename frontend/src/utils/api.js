@@ -11,7 +11,10 @@ export function getApiBaseUrl() {
     window.location.protocol === 'file:'
   );
   if (isCapacitor) {
-    return 'https://row-rotation-table-1.onrender.com/api';
+    return 'https://cse5-backend.onrender.com/api';
+  }
+  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
+    return 'https://cse5-backend.onrender.com/api';
   }
   return 'http://localhost:5000/api';
 }
